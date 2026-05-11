@@ -2,7 +2,9 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#18181b">
+    <meta name="color-scheme" content="dark">
     <title>良興主管公會 - 雲端勇者養成系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -23,12 +25,23 @@
             box-shadow: 4px 4px 0 0 #000000;
         }
 
-        .pixel-btn { transition: all 0.1s; cursor: pointer; }
+        .pixel-btn { transition: transform 0.1s, box-shadow 0.1s; cursor: pointer; }
         .pixel-btn:active:not(:disabled) {
             transform: translate(4px, 4px);
             box-shadow: 0px 0px 0 0 #000000;
         }
         .pixel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .pixel-btn:focus-visible,
+        button:focus-visible {
+            outline: 3px solid #facc15;
+            outline-offset: 2px;
+        }
+        input:focus-visible,
+        select:focus-visible {
+            outline: 3px solid #60a5fa;
+            outline-offset: 1px;
+        }
 
         .screen { display: none; }
         .screen.active { display: flex; }
@@ -51,21 +64,24 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .card-pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .avatar-animate { animation: none; }
+            .loader { animation: none; border-color: #3b82f6; }
+            .card-pop-in { animation: none; opacity: 1; transform: scale(1); }
+            [class*="animate-"] { animation: none !important; }
+            .pixel-btn { transition: none; }
+        }
     </style>
 </head>
 <body class="min-h-screen relative overflow-hidden bg-zinc-900 border-x border-zinc-800" id="app-body">
 
-    <!-- ======================================================= -->
-    <!-- ⚙️  設定區：部署 GAS 後請將 URL 貼在這裡               -->
-    <!-- ======================================================= -->
     <script>
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbytce_nhi-kmiCIWkcePJYo6Sa85C9lJUDMEisUAjEgPc0d8niEl7Nfm1pknhpIlhlUkQ/exec';
-        // 例如：'https://script.google.com/macros/s/AKfyc.../exec'
 
         async function callAPI(action, params = {}) {
             const res = await fetch(GAS_URL, {
                 method: 'POST',
-                // 使用 text/plain 避免 CORS preflight 問題
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action, ...params })
             });
@@ -74,12 +90,12 @@
         }
     </script>
 
-    <div id="global-loader" class="absolute inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center hidden">
+    <div id="global-loader" class="absolute inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center hidden" role="status">
         <div class="loader mb-4"></div>
-        <div class="pixel-font text-blue-400" id="loader-text">與公會伺服器連線中...</div>
+        <div class="pixel-font text-blue-400" id="loader-text" aria-live="polite">與公會伺服器連線中...</div>
     </div>
 
-    <div id="scan-results-modal" class="absolute inset-0 bg-zinc-950/90 z-50 hidden flex-col items-center justify-center p-4">
+    <div id="scan-results-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" class="absolute inset-0 bg-zinc-950/90 z-50 hidden flex-col items-center justify-center p-4">
         <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative shadow-[0_0_20px_#10b981]">
             <h3 class="text-xl pixel-font text-green-400 mb-1 text-center animate-pulse" id="modal-title">✨ 掃描解析完成 ✨</h3>
             <p class="text-[10px] text-zinc-400 text-center mb-4" id="modal-subtitle">請挑選 <span class="text-yellow-400 font-bold">1 項</span> 最適合的風格：</p>
@@ -88,17 +104,17 @@
         </div>
     </div>
 
-    <div id="qr-scanner-modal" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-4">
+    <div id="qr-scanner-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-4">
         <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative flex flex-col max-h-[95vh] overflow-y-auto">
-            <h3 class="text-lg pixel-font text-yellow-400 mb-2 text-center">📷 掃描或輸入戰術卡</h3>
+            <h3 class="text-lg pixel-font text-yellow-400 mb-2 text-center" id="qr-modal-title">📷 掃描或輸入戰術卡</h3>
             <p class="text-[10px] text-zinc-400 text-center mb-2">請對準卡片 QR Code，或直接輸入底部代碼</p>
 
             <div id="qr-reader" class="w-full bg-black min-h-[250px] mb-4"></div>
 
             <div class="border-t-2 border-zinc-700 pt-4 mb-4">
-                <label class="block text-xs pixel-font mb-2 text-zinc-400">手動輸入代碼 (若相機無法開啟)</label>
+                <label for="manual-code-input" class="block text-xs pixel-font mb-2 text-zinc-400">手動輸入代碼 (若相機無法開啟)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="manual-code-input" placeholder="例如：FLA-01" class="flex-grow bg-zinc-800 text-white p-2 border border-zinc-600 pixel-font outline-none uppercase">
+                    <input type="text" id="manual-code-input" placeholder="例如：FLA-01" autocomplete="off" class="flex-grow bg-zinc-800 text-white p-2 border border-zinc-600 pixel-font uppercase">
                     <button onclick="submitManualCode()" class="pixel-btn bg-indigo-600 text-white px-4 pixel-font text-sm border-2 border-indigo-400 whitespace-nowrap">送出</button>
                 </div>
             </div>
@@ -115,16 +131,16 @@
         </div>
 
         <div class="bg-zinc-800 p-5 pixel-border mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            <label class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
-            <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
+            <label for="dept-input" class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
+            <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font">
                 <option value="">載入中...</option>
             </select>
 
-            <label class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
-            <input type="text" id="name-input" placeholder="例如：王大明" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
+            <label for="name-input" class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
+            <input type="text" id="name-input" placeholder="例如：王大明" autocomplete="name" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font">
 
-            <label class="block text-xs pixel-font mb-2 text-yellow-400">通關密碼 (員工編號)</label>
-            <input type="password" id="password-input" placeholder="請輸入員編" class="w-full bg-zinc-700 text-white p-3 mb-2 border-2 border-zinc-900 pixel-font outline-none uppercase tracking-widest">
+            <label for="password-input" class="block text-xs pixel-font mb-2 text-yellow-400">通關密碼 (員工編號)</label>
+            <input type="password" id="password-input" placeholder="請輸入員編" autocomplete="current-password" class="w-full bg-zinc-700 text-white p-3 mb-2 border-2 border-zinc-900 pixel-font uppercase tracking-widest">
         </div>
 
         <button onclick="login()" class="pixel-btn w-full bg-blue-600 p-4 text-center pixel-font text-xl pixel-border font-bold">
@@ -205,7 +221,7 @@
         <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
             <div>
                 <h1 class="text-4xl pixel-font text-yellow-400 flex items-center gap-4">
-                    <span class="animate-pulse">🔴</span> 良興主管公會 - 實戰公會牆
+                    <span class="animate-pulse" aria-hidden="true">🔴</span> 良興主管公會 - 實戰公會牆
                 </h1>
                 <p class="text-zinc-500 mt-2">每 5 秒自動更新學員的最新進化狀態與戰術實裝。</p>
             </div>
@@ -218,12 +234,11 @@
                 </button>
             </div>
         </div>
-        <div id="admin-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 overflow-y-auto pb-10 content-start">
+        <div id="admin-grid" aria-live="polite" aria-label="學員進化狀態列表" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 overflow-y-auto pb-10 content-start">
         </div>
     </div>
 
     <script>
-        // ================= 資料庫與狀態設定 =================
         let userState = {
             empId: '', name: '', dept: '',
             quests: { q1: false, q2: false, q3: false },
@@ -254,7 +269,6 @@
         let html5QrcodeScanner = null;
         let adminPollingInterval = null;
 
-        // ================= 核心輔助函式 =================
         function switchScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
@@ -272,7 +286,6 @@
             document.getElementById(id).classList.add('hidden');
         }
 
-        // ================= 頁面載入：動態抓部門清單 =================
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await callAPI('getDepts');
@@ -287,7 +300,6 @@
             }
         });
 
-        // ================= API 呼叫邏輯（已換成 fetch）=================
         async function login() {
             const dept  = document.getElementById('dept-input').value;
             const name  = document.getElementById('name-input').value.trim();
@@ -324,7 +336,6 @@
             }
         }
 
-        // ================= Dashboard 渲染 =================
         function renderDashboard() {
             document.getElementById('dash-info').innerText = `${userState.dept} - ${userState.name}`;
             document.getElementById('dash-empId').innerText = `(ID:${userState.empId})`;
@@ -398,7 +409,6 @@
             return opt ? opt.title : '未知';
         }
 
-        // ================= 紙娃娃 Modal 邏輯 =================
         const unlockCodes = { 1: 'A123', 2: 'B456', 3: 'C789' };
 
         function showAvatarOptions(modId) {
@@ -408,11 +418,17 @@
                 return alert('❌ 密碼錯誤！請向講師確認本階段的通關密碼。');
             }
             const container = document.getElementById('scan-options-container');
-            container.innerHTML = '';
+
+            let html = '';
             avatarOptions[modId].forEach(opt => {
-                container.innerHTML += `
-                    <div onclick="saveAvatarChoice(${modId}, '${opt.id}')" class="bg-${opt.color}-900/40 border-2 border-${opt.color}-500 p-3 flex items-center gap-4 cursor-pointer hover:bg-${opt.color}-800/80 transition-all card-pop-in">
-                        <div class="text-3xl bg-${opt.color}-800 p-2 border border-black">${opt.icon}</div>
+                html += `
+                    <div
+                        role="button"
+                        tabindex="0"
+                        onclick="saveAvatarChoice(${modId}, '${opt.id}')"
+                        onkeydown="if(event.key==='Enter'||event.key===' ')saveAvatarChoice(${modId}, '${opt.id}')"
+                        class="bg-${opt.color}-900/40 border-2 border-${opt.color}-500 p-3 flex items-center gap-4 cursor-pointer hover:bg-${opt.color}-800/80 transition-colors card-pop-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400">
+                        <div class="text-3xl bg-${opt.color}-800 p-2 border border-black" aria-hidden="true">${opt.icon}</div>
                         <div class="flex-1 text-left">
                             <div class="text-sm font-bold text-white mb-1">${opt.title}</div>
                             <div class="text-[10px] text-zinc-300 leading-tight">${opt.desc}</div>
@@ -420,6 +436,8 @@
                     </div>
                 `;
             });
+            container.innerHTML = html;
+
             document.getElementById('scan-results-modal').classList.remove('hidden');
             document.getElementById('scan-results-modal').classList.add('flex');
         }
@@ -443,7 +461,6 @@
             }
         }
 
-        // ================= QR Code 相機掃描邏輯 =================
         function startQrScanner() {
             document.getElementById('qr-scanner-modal').classList.remove('hidden');
             document.getElementById('qr-scanner-modal').classList.add('flex');
@@ -499,7 +516,6 @@
             }
         }
 
-        // ================= 手動輸入代碼邏輯 =================
         async function submitManualCode() {
             let inputCode = document.getElementById('manual-code-input').value.trim().toUpperCase();
             if (!inputCode) return alert("請輸入戰術代碼！");
@@ -526,7 +542,6 @@
             }
         }
 
-        // ================= 動態 SVG 渲染引擎 =================
         function renderSVG(config, size = "100%") {
             let skin = '#fcd34d', body = '#d4d4d8', pants = '#a1a1aa', shoes = 'transparent', extra = '';
             let armT = 'rotate(0)', rightArmT = 'rotate(0)', legT = 'rotate(0)';
@@ -554,7 +569,7 @@
             else if (config.mod3 === 'relaxed') { shoes = '#f8fafc'; armT = 'rotate(10 26 42)';  rightArmT = 'rotate(-10 74 42)'; legT = 'rotate(0)'; }
             else if (config.mod3 === 'sprint')  { shoes = '#dc2626'; armT = 'rotate(45 26 42)';  rightArmT = 'rotate(-45 74 42)'; legT = 'rotate(-20 50 70)'; }
 
-            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;">
+            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;" aria-hidden="true">
                 ${hairBack}
                 <g transform="${legT}">
                     <rect x="36" y="70" width="12" height="22" fill="${pants}" />
@@ -578,7 +593,6 @@
             </svg>`;
         }
 
-        // ================= 大螢幕投影（Polling）=================
         let allHeroesCache = [];
 
         async function openAdminBoard() {
@@ -600,13 +614,13 @@
                 const data = await callAPI('getAllHeroes');
                 allHeroesCache = data;
                 const grid = document.getElementById('admin-grid');
-                grid.innerHTML = '';
 
                 if (data.length === 0) {
                     grid.innerHTML = '<div class="col-span-full text-center text-zinc-500 py-20 pixel-font text-xl">等待學員報到...</div>';
                     return;
                 }
 
+                let gridHtml = '';
                 data.forEach(user => {
                     let bg = 'bg-zinc-800 border-zinc-600';
                     let innerBg = "bg-zinc-800/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]";
@@ -629,7 +643,7 @@
                     }).join('');
                     if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
 
-                    grid.innerHTML += `
+                    gridHtml += `
                         <div class="border-2 ${bg} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
                             <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
                             <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
@@ -643,6 +657,8 @@
                         </div>
                     `;
                 });
+                grid.innerHTML = gridHtml;
+
             } catch (err) {
                 console.error('公會牆更新失敗:', err);
             }
