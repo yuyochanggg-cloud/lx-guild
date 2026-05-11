@@ -166,9 +166,15 @@
             </div>
         </div>
 
-        <div id="avatar-stage-container" class="relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-            <div id="svg-avatar-wrapper" class="w-40 h-40 avatar-animate relative"></div>
-            <div id="equipped-skills-display" class="absolute top-2 left-0 right-0 flex justify-center gap-2 px-4 flex-wrap"></div>
+        <!-- 著裝區：avatar 左 + 戰術技能右 -->
+        <div id="avatar-stage-container" class="relative w-full pixel-border flex overflow-hidden transition-all duration-500 mb-6 bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+            <div class="w-36 flex-shrink-0 flex items-end justify-center">
+                <div id="svg-avatar-wrapper" class="w-36 h-36 avatar-animate"></div>
+            </div>
+            <div class="flex-1 border-l border-zinc-700 flex flex-col justify-center px-3 py-3 gap-2 min-w-0">
+                <div class="text-[10px] pixel-font text-zinc-500 mb-1">⚔ 戰術技能</div>
+                <div id="equipped-skills-display" class="flex flex-col gap-2"></div>
+            </div>
         </div>
 
         <div class="flex-grow space-y-3 overflow-y-auto pb-4">
@@ -350,11 +356,14 @@
             document.getElementById('svg-avatar-wrapper').innerHTML = renderSVG(userState.avatarConfig);
 
             const skillsDiv = document.getElementById('equipped-skills-display');
-            skillsDiv.innerHTML = userState.equippedItems.map(code => {
-                const item = itemDB[code];
-                if (!item) return '';
-                return `<div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(255,255,255,0.3)] rounded-full avatar-animate cursor-pointer" title="${item.title}">${item.icon}</div>`;
-            }).join('');
+            skillsDiv.innerHTML = userState.equippedItems.length === 0
+                ? '<div class="text-[10px] text-zinc-600">完成所有模組後可實裝</div>'
+                : userState.equippedItems.map(code => {
+                    const item = itemDB[code];
+                    if (!item) return '';
+                    return `<div class="flex items-center gap-2"><div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm rounded-full flex-shrink-0" aria-hidden="true">${item.icon}</div><div class="text-xs text-${item.color}-200 truncate">${item.title}</div></div>`;
+                }).join('');
+
             document.getElementById('slot-count').innerText = `(${userState.equippedItems.length}/3)`;
 
             const st = userState.quests;
@@ -408,7 +417,7 @@
             document.getElementById('dash-level').innerText = levelText;
             const avatarStage = document.getElementById('avatar-stage-container');
             if (avatarStage) {
-                avatarStage.className = `relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 ${stageBgClass}`;
+                avatarStage.className = `relative w-full pixel-border flex overflow-hidden transition-all duration-500 mb-6 ${stageBgClass}`;
             }
         }
 
@@ -668,10 +677,10 @@
                         mod3Opt ? `<div class="text-[9px] text-yellow-400 leading-tight truncate mt-0.5">#${mod3Opt.desc}</div>` : '',
                     ].join('');
 
-                    // 技能欄：text-xs（比原本 text-[9px] 大）
+                    // 技能欄：明確文字顏色避免與暗色背景混淆
                     let itemsHtml = user.equippedItemsCodes.map(code => {
                         const i = itemDB[code];
-                        return i ? `<div class="text-xs bg-black border border-${i.color}-500 px-1.5 py-0.5 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
+                        return i ? `<div class="text-xs bg-black border border-${i.color}-500 px-1.5 py-0.5 truncate w-full mt-1 text-left text-${i.color}-200">${i.icon} ${i.title}</div>` : '';
                     }).join('');
                     if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1 px-1">尚未實裝戰術</div>';
 
