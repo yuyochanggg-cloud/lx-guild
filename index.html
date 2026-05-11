@@ -117,10 +117,7 @@
         <div class="bg-zinc-800 p-5 pixel-border mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
             <label class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
             <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
-                <option value="營運部">營運部</option>
-                <option value="業務部">業務部</option>
-                <option value="客服部">客服部</option>
-                <option value="資訊部">資訊部</option>
+                <option value="">載入中...</option>
             </select>
 
             <label class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
@@ -274,6 +271,21 @@
             document.getElementById(id).classList.remove('flex');
             document.getElementById(id).classList.add('hidden');
         }
+
+        // ================= 頁面載入：動態抓部門清單 =================
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await callAPI('getDepts');
+                const select = document.getElementById('dept-input');
+                if (res.success && res.depts.length > 0) {
+                    select.innerHTML = res.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+                } else {
+                    select.innerHTML = '<option value="">無法載入部門</option>';
+                }
+            } catch (err) {
+                document.getElementById('dept-input').innerHTML = '<option value="">連線失敗，請重整</option>';
+            }
+        });
 
         // ================= API 呼叫邏輯（已換成 fetch）=================
         async function login() {
