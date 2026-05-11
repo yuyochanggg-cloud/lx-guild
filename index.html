@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>良興主管公會 - 雲端勇者養成系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #18181b;
+            color: white;
+            touch-action: manipulation;
+        }
+
+        .pixel-font { font-family: 'DotGothic16', sans-serif; }
+
+        .pixel-border {
+            border: 4px solid #ffffff;
+            box-shadow: 4px 4px 0 0 #000000;
+        }
+
+        .pixel-btn { transition: all 0.1s; cursor: pointer; }
+        .pixel-btn:active:not(:disabled) {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0 0 #000000;
+        }
+        .pixel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .screen { display: none; }
+        .screen.active { display: flex; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .avatar-animate { animation: float 3s ease-in-out infinite; }
+
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6;
+            border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .card-pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-hidden bg-zinc-900 border-x border-zinc-800" id="app-body">
+
+    <!-- ======================================================= -->
+    <!-- ⚙️  設定區：部署 GAS 後請將 URL 貼在這裡               -->
+    <!-- ======================================================= -->
+    <script>
+        const GAS_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+        // 例如：'https://script.google.com/macros/s/AKfyc.../exec'
+
+        async function callAPI(action, params = {}) {
+            const res = await fetch(GAS_URL, {
+                method: 'POST',
+                // 使用 text/plain 避免 CORS preflight 問題
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action, ...params })
+            });
+            if (!res.ok) throw new Error(`HTTP 錯誤：${res.status}`);
+            return res.json();
+        }
+    </script>
+
+    <div id="global-loader" class="absolute inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center hidden">
+        <div class="loader mb-4"></div>
+        <div class="pixel-font text-blue-400" id="loader-text">與公會伺服器連線中...</div>
+    </div>
+
+    <div id="scan-results-modal" class="absolute inset-0 bg-zinc-950/90 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative shadow-[0_0_20px_#10b981]">
+            <h3 class="text-xl pixel-font text-green-400 mb-1 text-center animate-pulse" id="modal-title">✨ 掃描解析完成 ✨</h3>
+            <p class="text-[10px] text-zinc-400 text-center mb-4" id="modal-subtitle">請挑選 <span class="text-yellow-400 font-bold">1 項</span> 最適合的風格：</p>
+            <div id="scan-options-container" class="max-h-[60vh] overflow-y-auto mb-4 space-y-3"></div>
+            <button onclick="closeModal('scan-results-modal')" class="w-full bg-zinc-700 text-white p-3 pixel-font text-sm border-2 border-zinc-500 hover:bg-zinc-600 transition-colors">保留現狀 / 稍後決定</button>
+        </div>
+    </div>
+
+    <div id="qr-scanner-modal" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative flex flex-col max-h-[95vh] overflow-y-auto">
+            <h3 class="text-lg pixel-font text-yellow-400 mb-2 text-center">📷 掃描或輸入戰術卡</h3>
+            <p class="text-[10px] text-zinc-400 text-center mb-2">請對準卡片 QR Code，或直接輸入底部代碼</p>
+
+            <div id="qr-reader" class="w-full bg-black min-h-[250px] mb-4"></div>
+
+            <div class="border-t-2 border-zinc-700 pt-4 mb-4">
+                <label class="block text-xs pixel-font mb-2 text-zinc-400">手動輸入代碼 (若相機無法開啟)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="manual-code-input" placeholder="例如：FLA-01" class="flex-grow bg-zinc-800 text-white p-2 border border-zinc-600 pixel-font outline-none uppercase">
+                    <button onclick="submitManualCode()" class="pixel-btn bg-indigo-600 text-white px-4 pixel-font text-sm border-2 border-indigo-400 whitespace-nowrap">送出</button>
+                </div>
+            </div>
+
+            <button onclick="stopQrScanner()" class="w-full bg-red-700 text-white p-3 pixel-font text-sm border-2 border-red-500">關閉視窗</button>
+        </div>
+    </div>
+
+    <!-- 登入畫面 -->
+    <div id="screen-login" class="screen active flex-col h-screen p-6 justify-center max-w-md mx-auto relative">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl pixel-font text-blue-400 mb-2">良興主管公會</h1>
+            <p class="text-xs text-zinc-400">請輸入資料以喚醒您的專屬角色</p>
+        </div>
+
+        <div class="bg-zinc-800 p-5 pixel-border mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+            <label class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
+            <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
+                <option value="營運部">營運部</option>
+                <option value="業務部">業務部</option>
+                <option value="客服部">客服部</option>
+                <option value="資訊部">資訊部</option>
+            </select>
+
+            <label class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
+            <input type="text" id="name-input" placeholder="例如：王大明" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
+
+            <label class="block text-xs pixel-font mb-2 text-yellow-400">通關密碼 (員工編號)</label>
+            <input type="password" id="password-input" placeholder="請輸入員編" class="w-full bg-zinc-700 text-white p-3 mb-2 border-2 border-zinc-900 pixel-font outline-none uppercase tracking-widest">
+        </div>
+
+        <button onclick="login()" class="pixel-btn w-full bg-blue-600 p-4 text-center pixel-font text-xl pixel-border font-bold">
+            驗證並進入公會 ✦
+        </button>
+
+        <div class="mt-8 text-center border-t border-zinc-700 pt-4">
+            <button onclick="openAdminBoard()" class="text-xs text-zinc-500 hover:text-yellow-400 pixel-font transition-colors">
+                🖥️ 開啟大螢幕投影模式 (HR專用)
+            </button>
+        </div>
+    </div>
+
+    <!-- Dashboard 畫面 -->
+    <div id="screen-dashboard" class="screen flex-col h-screen p-4 max-w-md mx-auto">
+        <div class="flex justify-between items-end mb-4 pt-2 border-b-2 border-zinc-700 pb-2">
+            <div>
+                <h1 class="text-xl pixel-font text-yellow-400">角色養成面板</h1>
+                <p class="text-xs text-zinc-400"><span id="dash-info"></span> <span class="text-zinc-600" id="dash-empId"></span></p>
+            </div>
+            <div class="flex flex-col items-end">
+                <div class="pixel-font bg-zinc-800 px-2 py-1 border border-zinc-600 text-[10px]" id="dash-level">素體階段</div>
+            </div>
+        </div>
+
+        <div id="avatar-stage-container" class="relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+            <div id="svg-avatar-wrapper" class="w-40 h-40 avatar-animate relative"></div>
+            <div id="equipped-skills-display" class="absolute top-2 left-0 right-0 flex justify-center gap-2 px-4 flex-wrap"></div>
+        </div>
+
+        <div class="flex-grow space-y-3 overflow-y-auto pb-4">
+            <h2 class="text-sm pixel-font text-zinc-400 mb-2">▶ 課程進化路徑</h2>
+
+            <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 relative group" id="quest-1">
+                <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q1-icon">👔</div>
+                <div class="flex-grow">
+                    <div class="text-[10px] text-blue-400 pixel-font">模組一：管理基礎</div>
+                    <div class="text-sm font-bold" id="q1-status-text">解鎖服裝款式</div>
+                </div>
+                <button id="btn-q1" onclick="showAvatarOptions(1)" class="pixel-btn bg-blue-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]">掃描解析</button>
+            </div>
+
+            <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 opacity-50 relative" id="quest-2">
+                <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q2-icon">❓</div>
+                <div class="flex-grow">
+                    <div class="text-[10px] text-orange-400 pixel-font">模組二：專業形象</div>
+                    <div class="text-sm font-bold" id="q2-status-text">解鎖髮型與表情</div>
+                </div>
+                <button id="btn-q2" onclick="showAvatarOptions(2)" class="pixel-btn bg-zinc-700 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]" disabled>鎖定</button>
+            </div>
+
+            <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 opacity-50 relative" id="quest-3">
+                <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q3-icon">❓</div>
+                <div class="flex-grow">
+                    <div class="text-[10px] text-yellow-400 pixel-font">模組三：當責執行</div>
+                    <div class="text-sm font-bold" id="q3-status-text">解鎖鞋款與姿勢</div>
+                </div>
+                <button id="btn-q3" onclick="showAvatarOptions(3)" class="pixel-btn bg-zinc-700 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]" disabled>鎖定</button>
+            </div>
+
+            <div class="bg-indigo-900/40 border-2 border-indigo-500 p-3 flex flex-col gap-2 opacity-50 mt-6" id="quest-final">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-950 w-10 h-10 flex items-center justify-center text-xl border border-indigo-400">⚔️</div>
+                    <div class="flex-grow">
+                        <div class="text-[10px] text-indigo-300 pixel-font">模組四：最終軍火庫</div>
+                        <div class="text-sm font-bold text-indigo-100">實裝戰術技能卡 <span id="slot-count" class="text-yellow-400 text-xs">(0/3)</span></div>
+                    </div>
+                </div>
+                <button id="btn-final" onclick="startQrScanner()" class="pixel-btn w-full bg-zinc-700 text-sm pixel-font py-2 border-2 border-white mt-1 flex items-center justify-center gap-2" disabled>
+                    📷 開啟相機掃描實體卡
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大螢幕投影畫面 -->
+    <div id="screen-admin" class="screen flex-col h-screen w-full bg-zinc-950 p-6 overflow-hidden">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
+            <div>
+                <h1 class="text-4xl pixel-font text-yellow-400 flex items-center gap-4">
+                    <span class="animate-pulse">🔴</span> 良興主管公會 - 實戰公會牆
+                </h1>
+                <p class="text-zinc-500 mt-2">每 5 秒自動更新學員的最新進化狀態與戰術實裝。</p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="downloadCSV()" class="pixel-btn bg-green-600 px-6 py-3 text-white pixel-font border-2 border-white">
+                    📊 下載訓練紀錄 (CSV)
+                </button>
+                <button onclick="switchScreen('screen-login'); clearInterval(adminPollingInterval);" class="pixel-btn bg-zinc-700 px-4 py-3 text-white pixel-font border-2 border-zinc-500">
+                    返回
+                </button>
+            </div>
+        </div>
+        <div id="admin-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 overflow-y-auto pb-10 content-start">
+        </div>
+    </div>
+
+    <script>
+        // ================= 資料庫與狀態設定 =================
+        let userState = {
+            empId: '', name: '', dept: '',
+            quests: { q1: false, q2: false, q3: false },
+            avatarConfig: { mod1: '', mod2: '', mod3: '' },
+            equippedItems: []
+        };
+
+        let itemDB = {};
+
+        const avatarOptions = {
+            1: [
+                { id: 'suit',    title: '專業西裝',   desc: '制度與標準的捍衛者', icon: '👔', color: 'blue' },
+                { id: 'casual',  title: '科技休閒服', desc: '敏捷與變通的引導者', icon: '👕', color: 'slate' },
+                { id: 'uniform', title: '良興戰袍',   desc: '文化與現場的實踐者', icon: '🦺', color: 'red' }
+            ],
+            2: [
+                { id: 'short', title: '自信短髮', desc: '果斷決策的風格',     icon: '👦',   color: 'orange' },
+                { id: 'bun',   title: '專業包頭', desc: '邏輯清晰的翻譯官', icon: '👩‍🏫', color: 'stone' },
+                { id: 'wavy',  title: '活力捲髮', desc: '同理傾聽的暖心者', icon: '👱‍♀️', color: 'yellow' }
+            ],
+            3: [
+                { id: 'action',  title: '黑色戰鬥靴', desc: '專解難題的攻堅者', icon: '🥾', color: 'zinc' },
+                { id: 'relaxed', title: '純白休閒鞋', desc: '步步為營的穩健者', icon: '👟', color: 'slate' },
+                { id: 'sprint',  title: '熱血跑鞋',   desc: '自己造浪的先行者', icon: '🏃', color: 'red' }
+            ]
+        };
+
+        let html5QrcodeScanner = null;
+        let adminPollingInterval = null;
+
+        // ================= 核心輔助函式 =================
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if (screenId === 'screen-admin') document.getElementById('app-body').classList.remove('max-w-md', 'mx-auto');
+            else document.getElementById('app-body').classList.add('max-w-md', 'mx-auto');
+        }
+
+        function showLoader(text = '處理中...') {
+            document.getElementById('loader-text').innerText = text;
+            document.getElementById('global-loader').style.display = 'flex';
+        }
+        function hideLoader() { document.getElementById('global-loader').style.display = 'none'; }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('flex');
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // ================= API 呼叫邏輯（已換成 fetch）=================
+        async function login() {
+            const dept  = document.getElementById('dept-input').value;
+            const name  = document.getElementById('name-input').value.trim();
+            const empId = document.getElementById('password-input').value.trim().toUpperCase();
+
+            if (!name || !empId) return alert('姓名與員編不可為空！');
+
+            showLoader('聯絡人資資料庫驗證身分...');
+            try {
+                const res = await callAPI('login', { dept, name, empId });
+                if (res.success) {
+                    userState = res.userData;
+                    await fetchItemDatabase();
+                } else {
+                    hideLoader();
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('連線錯誤：' + err);
+            }
+        }
+
+        async function fetchItemDatabase() {
+            showLoader('同步雲端戰術圖鑑...');
+            try {
+                itemDB = await callAPI('getItems');
+                hideLoader();
+                renderDashboard();
+                switchScreen('screen-dashboard');
+            } catch (err) {
+                hideLoader();
+                alert('抓取戰術圖鑑失敗：' + err);
+            }
+        }
+
+        // ================= Dashboard 渲染 =================
+        function renderDashboard() {
+            document.getElementById('dash-info').innerText = `${userState.dept} - ${userState.name}`;
+            document.getElementById('dash-empId').innerText = `(ID:${userState.empId})`;
+            document.getElementById('svg-avatar-wrapper').innerHTML = renderSVG(userState.avatarConfig);
+
+            const skillsDiv = document.getElementById('equipped-skills-display');
+            skillsDiv.innerHTML = userState.equippedItems.map(code => {
+                const item = itemDB[code];
+                if (!item) return '';
+                return `<div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(255,255,255,0.3)] rounded-full avatar-animate cursor-pointer" title="${item.title}">${item.icon}</div>`;
+            }).join('');
+            document.getElementById('slot-count').innerText = `(${userState.equippedItems.length}/3)`;
+
+            const st = userState.quests;
+            let levelText = '素體階段';
+            let stageBgClass = "bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]";
+
+            if (st.q1) {
+                levelText = '穿著服裝的幹部';
+                stageBgClass = "bg-gradient-to-t from-blue-900/60 to-zinc-900";
+                document.getElementById('q1-status-text').innerHTML = `<span class="text-green-400">已裝備：${getOptTitle(1, userState.avatarConfig.mod1)}</span>`;
+                document.getElementById('btn-q1').innerText = '更換造型';
+                document.getElementById('btn-q1').className = 'pixel-btn bg-zinc-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]';
+                document.getElementById('quest-2').classList.remove('opacity-50');
+                document.getElementById('btn-q2').disabled = false;
+                if (!st.q2) {
+                    document.getElementById('btn-q2').innerText = '掃描解析';
+                    document.getElementById('btn-q2').className = 'pixel-btn bg-orange-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]';
+                }
+            }
+            if (st.q2) {
+                levelText = '具備專業形象';
+                stageBgClass = "bg-gradient-to-t from-orange-900/60 to-zinc-900";
+                document.getElementById('q2-status-text').innerHTML = `<span class="text-green-400">已裝備：${getOptTitle(2, userState.avatarConfig.mod2)}</span>`;
+                document.getElementById('btn-q2').innerText = '重置';
+                document.getElementById('btn-q2').className = 'pixel-btn bg-zinc-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]';
+                document.getElementById('quest-3').classList.remove('opacity-50');
+                document.getElementById('btn-q3').disabled = false;
+                if (!st.q3) {
+                    document.getElementById('btn-q3').innerText = '掃描解析';
+                    document.getElementById('btn-q3').className = 'pixel-btn bg-yellow-600 text-black text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]';
+                }
+            }
+            if (st.q3) {
+                levelText = '完全體：行動主管';
+                stageBgClass = "bg-gradient-to-t from-yellow-700/60 to-zinc-900 shadow-[inset_0_0_20px_rgba(234,179,8,0.2)]";
+                document.getElementById('q3-status-text').innerHTML = `<span class="text-green-400">已裝備：${getOptTitle(3, userState.avatarConfig.mod3)}</span>`;
+                document.getElementById('btn-q3').innerText = '重置';
+                document.getElementById('btn-q3').className = 'pixel-btn bg-zinc-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px] text-white';
+                document.getElementById('quest-final').classList.remove('opacity-50');
+                const btnFinal = document.getElementById('btn-final');
+                if (userState.equippedItems.length >= 3) {
+                    btnFinal.disabled = true;
+                    btnFinal.innerText = '✨ 戰術配置已滿 ✨';
+                    btnFinal.className = 'pixel-btn w-full bg-green-700 text-white text-sm pixel-font py-2 border-2 border-white mt-1';
+                } else {
+                    btnFinal.disabled = false;
+                    btnFinal.className = 'pixel-btn w-full bg-indigo-600 text-sm pixel-font py-3 border-2 border-white mt-1 flex items-center justify-center gap-2 font-bold animate-pulse';
+                }
+            }
+
+            document.getElementById('dash-level').innerText = levelText;
+            const avatarStage = document.getElementById('avatar-stage-container');
+            if (avatarStage) {
+                avatarStage.className = `relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 ${stageBgClass}`;
+            }
+        }
+
+        function getOptTitle(modId, val) {
+            const opt = avatarOptions[modId].find(o => o.id === val);
+            return opt ? opt.title : '未知';
+        }
+
+        // ================= 紙娃娃 Modal 邏輯 =================
+        const unlockCodes = { 1: 'A123', 2: 'B456', 3: 'C789' };
+
+        function showAvatarOptions(modId) {
+            const inputCode = prompt(`請輸入【模組 ${modId}】的通關密碼：\n(提示：請看講師簡報)`);
+            if (inputCode === null) return;
+            if (inputCode.trim().toUpperCase() !== unlockCodes[modId]) {
+                return alert('❌ 密碼錯誤！請向講師確認本階段的通關密碼。');
+            }
+            const container = document.getElementById('scan-options-container');
+            container.innerHTML = '';
+            avatarOptions[modId].forEach(opt => {
+                container.innerHTML += `
+                    <div onclick="saveAvatarChoice(${modId}, '${opt.id}')" class="bg-${opt.color}-900/40 border-2 border-${opt.color}-500 p-3 flex items-center gap-4 cursor-pointer hover:bg-${opt.color}-800/80 transition-all card-pop-in">
+                        <div class="text-3xl bg-${opt.color}-800 p-2 border border-black">${opt.icon}</div>
+                        <div class="flex-1 text-left">
+                            <div class="text-sm font-bold text-white mb-1">${opt.title}</div>
+                            <div class="text-[10px] text-zinc-300 leading-tight">${opt.desc}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('scan-results-modal').classList.remove('hidden');
+            document.getElementById('scan-results-modal').classList.add('flex');
+        }
+
+        async function saveAvatarChoice(modId, choiceId) {
+            closeModal('scan-results-modal');
+            showLoader('寫入雲端配置...');
+            try {
+                const res = await callAPI('updateAvatar', { empId: userState.empId, modId, choiceId });
+                hideLoader();
+                if (res.success) {
+                    userState.quests[`q${modId}`] = true;
+                    userState.avatarConfig[`mod${modId}`] = choiceId;
+                    renderDashboard();
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('寫入失敗：' + err);
+            }
+        }
+
+        // ================= QR Code 相機掃描邏輯 =================
+        function startQrScanner() {
+            document.getElementById('qr-scanner-modal').classList.remove('hidden');
+            document.getElementById('qr-scanner-modal').classList.add('flex');
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => {
+                console.warn("相機啟動失敗:", err);
+                alert(
+                    "⚠️ 無法直接開啟相機！\n\n" +
+                    "1. 如果您是用 LINE 開啟，請點選右上角改用「Safari 或 Chrome」開啟。\n" +
+                    "2. 您也可以在下方直接輸入戰術卡代碼來解鎖！"
+                );
+            });
+        }
+
+        function stopQrScanner() {
+            closeModal('qr-scanner-modal');
+            if (html5QrcodeScanner) {
+                try {
+                    html5QrcodeScanner.stop().then(() => {
+                        html5QrcodeScanner.clear();
+                    }).catch(e => {
+                        html5QrcodeScanner.clear();
+                    });
+                } catch (e) {
+                    console.log("相機關閉時略過錯誤:", e);
+                }
+            }
+        }
+
+        async function onScanSuccess(decodedText) {
+            if (!decodedText.startsWith('TACTIC:')) return;
+            const code = decodedText.split(':')[1];
+            if (!itemDB[code]) return alert("無效的戰術代碼！資料庫找不到此設定。");
+            if (userState.equippedItems.includes(code)) return alert("此戰術您已經實裝過了！");
+
+            stopQrScanner();
+            showLoader(`正在裝備 ${itemDB[code].title}...`);
+            try {
+                const res = await callAPI('equipItem', { empId: userState.empId, code });
+                hideLoader();
+                if (res.success) {
+                    userState.equippedItems.push(code);
+                    alert(`✨ 實裝成功：${itemDB[code].title} ✨`);
+                    renderDashboard();
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('裝備失敗：' + err);
+            }
+        }
+
+        // ================= 手動輸入代碼邏輯 =================
+        async function submitManualCode() {
+            let inputCode = document.getElementById('manual-code-input').value.trim().toUpperCase();
+            if (!inputCode) return alert("請輸入戰術代碼！");
+            if (inputCode.startsWith('TACTIC:')) inputCode = inputCode.split(':')[1];
+            if (!itemDB[inputCode]) return alert("無效的戰術代碼！請檢查卡片上的英數字是否輸入正確。");
+            if (userState.equippedItems.includes(inputCode)) return alert("此戰術您已經實裝過了！");
+
+            stopQrScanner();
+            document.getElementById('manual-code-input').value = '';
+            showLoader(`正在裝備 ${itemDB[inputCode].title}...`);
+            try {
+                const res = await callAPI('equipItem', { empId: userState.empId, code: inputCode });
+                hideLoader();
+                if (res.success) {
+                    userState.equippedItems.push(inputCode);
+                    alert(`✨ 實裝成功：${itemDB[inputCode].title} ✨`);
+                    renderDashboard();
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('裝備失敗：' + err);
+            }
+        }
+
+        // ================= 動態 SVG 渲染引擎 =================
+        function renderSVG(config, size = "100%") {
+            let skin = '#fcd34d', body = '#d4d4d8', pants = '#a1a1aa', shoes = 'transparent', extra = '';
+            let armT = 'rotate(0)', rightArmT = 'rotate(0)', legT = 'rotate(0)';
+            let hairBack = '', hairFront = '', faceFeatures = '';
+
+            faceFeatures = `<circle cx="43" cy="28" r="2" fill="#171717"/><circle cx="57" cy="28" r="2" fill="#171717"/><path d="M 46 34 Q 50 38 54 34" stroke="#171717" stroke-width="2" stroke-linecap="round" fill="none"/>`;
+
+            if (config.mod1 === 'suit')    { body = '#1e3a8a'; pants = '#0f172a'; extra = `<polygon points="48,40 52,40 50,56" fill="#dc2626"/>`; }
+            else if (config.mod1 === 'casual')  { body = '#475569'; pants = '#1e293b'; }
+            else if (config.mod1 === 'uniform') { body = '#1e3a8a'; pants = '#171717'; extra = `<rect x="52" y="44" width="10" height="4" fill="#ffffff" opacity="0.9" rx="1"/>`; }
+
+            if (config.mod2 === 'short') {
+                hairFront = `<path d="M 32 20 Q 50 8 68 20 L 68 14 Q 50 4 32 14 Z" fill="#3f2e21"/><rect x="40" y="22" width="6" height="2" fill="#3f2e21" transform="rotate(10 43 23)"/><rect x="54" y="22" width="6" height="2" fill="#3f2e21" transform="rotate(-10 57 23)"/>`;
+            } else if (config.mod2 === 'bun') {
+                hairBack  = `<circle cx="68" cy="20" r="7" fill="#0f172a"/>`;
+                hairFront = `<path d="M 32 20 Q 50 8 68 20 L 68 14 Q 50 4 32 14 Z" fill="#0f172a"/>`;
+                faceFeatures += `<rect x="36" y="25" width="10" height="6" fill="none" stroke="#171717" stroke-width="1.5" rx="1"/><rect x="54" y="25" width="10" height="6" fill="none" stroke="#171717" stroke-width="1.5" rx="1"/><line x1="46" y1="28" x2="54" y2="28" stroke="#171717" stroke-width="1.5"/>`;
+            } else if (config.mod2 === 'wavy') {
+                hairBack  = `<path d="M 28 20 Q 20 40 35 45 Q 38 40 32 30 Q 50 10 68 30 Q 62 40 65 45 Q 80 40 72 20 Z" fill="#78350f"/>`;
+                hairFront = `<path d="M 32 22 Q 50 10 68 22 L 68 14 Q 50 4 32 14 Z" fill="#78350f"/>`;
+                faceFeatures = `<circle cx="43" cy="28" r="2" fill="#171717"/><circle cx="57" cy="28" r="2" fill="#171717"/><path d="M 44 34 Q 50 40 56 34" stroke="#171717" stroke-width="2" stroke-linecap="round" fill="none"/>`;
+            }
+
+            if (config.mod3 === 'action')  { shoes = '#171717'; armT = 'rotate(-25 26 42)'; rightArmT = 'rotate(25 74 42)';  legT = 'rotate(-10 50 70)'; }
+            else if (config.mod3 === 'relaxed') { shoes = '#f8fafc'; armT = 'rotate(10 26 42)';  rightArmT = 'rotate(-10 74 42)'; legT = 'rotate(0)'; }
+            else if (config.mod3 === 'sprint')  { shoes = '#dc2626'; armT = 'rotate(45 26 42)';  rightArmT = 'rotate(-45 74 42)'; legT = 'rotate(-20 50 70)'; }
+
+            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;">
+                ${hairBack}
+                <g transform="${legT}">
+                    <rect x="36" y="70" width="12" height="22" fill="${pants}" />
+                    <rect x="34" y="92" width="16" height="6"  fill="${shoes}" rx="2"/>
+                    <rect x="52" y="70" width="12" height="22" fill="${pants}" />
+                    <rect x="50" y="92" width="16" height="6"  fill="${shoes}" rx="2"/>
+                </g>
+                <g transform="${armT}">
+                    <rect x="20" y="42" width="12" height="26" fill="${skin}"  rx="4" />
+                    <rect x="20" y="40" width="12" height="14" fill="${body}"  rx="2" />
+                </g>
+                <rect x="32" y="40" width="36" height="30" fill="${body}" rx="2" />
+                ${extra}
+                <g transform="${rightArmT}">
+                    <rect x="68" y="42" width="12" height="26" fill="${skin}"  rx="4" />
+                    <rect x="68" y="40" width="12" height="14" fill="${body}"  rx="2" />
+                </g>
+                <rect x="32" y="14" width="36" height="28" fill="${skin}" rx="8" />
+                ${faceFeatures}
+                ${hairFront}
+            </svg>`;
+        }
+
+        // ================= 大螢幕投影（Polling）=================
+        let allHeroesCache = [];
+
+        async function openAdminBoard() {
+            showLoader('載入戰術圖鑑...');
+            try {
+                itemDB = await callAPI('getItems');
+                hideLoader();
+                switchScreen('screen-admin');
+                fetchAdminData();
+                adminPollingInterval = setInterval(fetchAdminData, 5000);
+            } catch (err) {
+                hideLoader();
+                alert('載入失敗：' + err);
+            }
+        }
+
+        async function fetchAdminData() {
+            try {
+                const data = await callAPI('getAllHeroes');
+                allHeroesCache = data;
+                const grid = document.getElementById('admin-grid');
+                grid.innerHTML = '';
+
+                if (data.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full text-center text-zinc-500 py-20 pixel-font text-xl">等待學員報到...</div>';
+                    return;
+                }
+
+                data.forEach(user => {
+                    let bg = 'bg-zinc-800 border-zinc-600';
+                    let innerBg = "bg-zinc-800/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]";
+
+                    if (user.quests.q3) {
+                        bg = 'bg-yellow-900/20 border-yellow-600 shadow-[0_0_15px_rgba(234,179,8,0.3)]';
+                        innerBg = "bg-gradient-to-t from-yellow-700/60 to-zinc-900";
+                    } else if (user.quests.q2) {
+                        bg = 'bg-orange-900/20 border-orange-600';
+                        innerBg = "bg-gradient-to-t from-orange-900/60 to-zinc-900";
+                    } else if (user.quests.q1) {
+                        bg = 'bg-blue-900/20 border-blue-600';
+                        innerBg = "bg-gradient-to-t from-blue-900/60 to-zinc-900";
+                    }
+
+                    let svg = renderSVG(user.avatarConfig, "100px");
+                    let itemsHtml = user.equippedItemsCodes.map(code => {
+                        const i = itemDB[code];
+                        return i ? `<div class="text-[9px] bg-black border border-${i.color}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
+                    }).join('');
+                    if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
+
+                    grid.innerHTML += `
+                        <div class="border-2 ${bg} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
+                            <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
+                            <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
+                                ${svg}
+                            </div>
+                            <div class="text-[9px] text-zinc-400 pixel-font mt-2 w-full truncate">${user.dept}</div>
+                            <div class="text-sm font-black text-white w-full truncate">${user.name}</div>
+                            <div class="w-full pt-1 border-t border-zinc-800 mt-auto">
+                                ${itemsHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error('公會牆更新失敗:', err);
+            }
+        }
+
+        function downloadCSV() {
+            if (allHeroesCache.length === 0) return alert("無資料可下載");
+            let csv = "data:text/csv;charset=utf-8,﻿";
+            csv += "員編,部門,姓名,服裝(Mod1),髮型(Mod2),姿勢(Mod3),戰術1,戰術2,戰術3,最後更新時間\n";
+            allHeroesCache.forEach(u => {
+                const cfg = u.avatarConfig || {};
+                const q1 = getOptTitle(1, cfg.mod1);
+                const q2 = getOptTitle(2, cfg.mod2);
+                const q3 = getOptTitle(3, cfg.mod3);
+                const items = u.equippedItemsCodes || [];
+                const t1 = itemDB[items[0]] ? `${items[0]} ${itemDB[items[0]].title}` : '';
+                const t2 = itemDB[items[1]] ? `${items[1]} ${itemDB[items[1]].title}` : '';
+                const t3 = itemDB[items[2]] ? `${items[2]} ${itemDB[items[2]].title}` : '';
+                const row = [u.empId, u.dept, u.name, q1, q2, q3, t1, t2, t3, u.updatedAt].map(v => `"${v || ''}"`).join(",");
+                csv += row + "\n";
+            });
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csv));
+            link.setAttribute("download", `良興主管公會_戰術實裝報表_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
