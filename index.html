@@ -2,9 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#18181b">
-    <meta name="color-scheme" content="dark">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>良興主管公會 - 雲端勇者養成系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -25,23 +23,12 @@
             box-shadow: 4px 4px 0 0 #000000;
         }
 
-        .pixel-btn { transition: transform 0.1s, box-shadow 0.1s; cursor: pointer; }
+        .pixel-btn { transition: all 0.1s; cursor: pointer; }
         .pixel-btn:active:not(:disabled) {
             transform: translate(4px, 4px);
             box-shadow: 0px 0px 0 0 #000000;
         }
         .pixel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .pixel-btn:focus-visible,
-        button:focus-visible {
-            outline: 3px solid #facc15;
-            outline-offset: 2px;
-        }
-        input:focus-visible,
-        select:focus-visible {
-            outline: 3px solid #60a5fa;
-            outline-offset: 1px;
-        }
 
         .screen { display: none; }
         .screen.active { display: flex; }
@@ -64,24 +51,21 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .card-pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-
-        @media (prefers-reduced-motion: reduce) {
-            .avatar-animate { animation: none; }
-            .loader { animation: none; border-color: #3b82f6; }
-            .card-pop-in { animation: none; opacity: 1; transform: scale(1); }
-            [class*="animate-"] { animation: none !important; }
-            .pixel-btn { transition: none; }
-        }
     </style>
 </head>
 <body class="min-h-screen relative overflow-hidden bg-zinc-900 border-x border-zinc-800" id="app-body">
 
+    <!-- ======================================================= -->
+    <!-- ⚙️  設定區：部署 GAS 後請將 URL 貼在這裡               -->
+    <!-- ======================================================= -->
     <script>
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbytce_nhi-kmiCIWkcePJYo6Sa85C9lJUDMEisUAjEgPc0d8niEl7Nfm1pknhpIlhlUkQ/exec';
+        // 例如：'https://script.google.com/macros/s/AKfyc.../exec'
 
         async function callAPI(action, params = {}) {
             const res = await fetch(GAS_URL, {
                 method: 'POST',
+                // 使用 text/plain 避免 CORS preflight 問題
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action, ...params })
             });
@@ -90,12 +74,12 @@
         }
     </script>
 
-    <div id="global-loader" class="absolute inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center hidden" role="status">
+    <div id="global-loader" class="absolute inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center hidden">
         <div class="loader mb-4"></div>
-        <div class="pixel-font text-blue-400" id="loader-text" aria-live="polite">與公會伺服器連線中...</div>
+        <div class="pixel-font text-blue-400" id="loader-text">與公會伺服器連線中...</div>
     </div>
 
-    <div id="scan-results-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" class="absolute inset-0 bg-zinc-950/90 z-50 hidden flex-col items-center justify-center p-4">
+    <div id="scan-results-modal" class="absolute inset-0 bg-zinc-950/90 z-50 hidden flex-col items-center justify-center p-4">
         <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative shadow-[0_0_20px_#10b981]">
             <h3 class="text-xl pixel-font text-green-400 mb-1 text-center animate-pulse" id="modal-title">✨ 掃描解析完成 ✨</h3>
             <p class="text-[10px] text-zinc-400 text-center mb-4" id="modal-subtitle">請挑選 <span class="text-yellow-400 font-bold">1 項</span> 最適合的風格：</p>
@@ -104,18 +88,21 @@
         </div>
     </div>
 
-    <div id="qr-scanner-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-4">
+    <div id="qr-scanner-modal" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-4">
         <div class="bg-zinc-900 pixel-border p-4 w-full max-w-sm relative flex flex-col max-h-[95vh] overflow-y-auto">
-            <h3 class="text-lg pixel-font text-yellow-400 mb-2 text-center" id="qr-modal-title">📷 掃描或輸入戰術卡</h3>
+            <h3 class="text-lg pixel-font text-yellow-400 mb-2 text-center">📷 掃描或輸入戰術卡</h3>
             <p class="text-[10px] text-zinc-400 text-center mb-2">請對準卡片 QR Code，或直接輸入底部代碼</p>
+
             <div id="qr-reader" class="w-full bg-black min-h-[250px] mb-4"></div>
+
             <div class="border-t-2 border-zinc-700 pt-4 mb-4">
-                <label for="manual-code-input" class="block text-xs pixel-font mb-2 text-zinc-400">手動輸入代碼 (若相機無法開啟)</label>
+                <label class="block text-xs pixel-font mb-2 text-zinc-400">手動輸入代碼 (若相機無法開啟)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="manual-code-input" placeholder="例如：FLA-01" autocomplete="off" class="flex-grow bg-zinc-800 text-white p-2 border border-zinc-600 pixel-font uppercase">
+                    <input type="text" id="manual-code-input" placeholder="例如：FLA-01" class="flex-grow bg-zinc-800 text-white p-2 border border-zinc-600 pixel-font outline-none uppercase">
                     <button onclick="submitManualCode()" class="pixel-btn bg-indigo-600 text-white px-4 pixel-font text-sm border-2 border-indigo-400 whitespace-nowrap">送出</button>
                 </div>
             </div>
+
             <button onclick="stopQrScanner()" class="w-full bg-red-700 text-white p-3 pixel-font text-sm border-2 border-red-500">關閉視窗</button>
         </div>
     </div>
@@ -126,19 +113,24 @@
             <h1 class="text-2xl pixel-font text-blue-400 mb-2">良興主管公會</h1>
             <p class="text-xs text-zinc-400">請輸入資料以喚醒您的專屬角色</p>
         </div>
+
         <div class="bg-zinc-800 p-5 pixel-border mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            <label for="dept-input" class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
-            <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font">
+            <label class="block text-xs pixel-font mb-2 text-zinc-400">所屬部門</label>
+            <select id="dept-input" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
                 <option value="">載入中...</option>
             </select>
-            <label for="name-input" class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
-            <input type="text" id="name-input" placeholder="例如：王大明" autocomplete="name" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font">
-            <label for="password-input" class="block text-xs pixel-font mb-2 text-yellow-400">通關密碼 (員工編號)</label>
-            <input type="password" id="password-input" placeholder="請輸入員編" autocomplete="current-password" class="w-full bg-zinc-700 text-white p-3 mb-2 border-2 border-zinc-900 pixel-font uppercase tracking-widest">
+
+            <label class="block text-xs pixel-font mb-2 text-zinc-400">真實姓名</label>
+            <input type="text" id="name-input" placeholder="例如：王大明" class="w-full bg-zinc-700 text-white p-3 mb-4 border-2 border-zinc-900 pixel-font outline-none">
+
+            <label class="block text-xs pixel-font mb-2 text-yellow-400">通關密碼 (員工編號)</label>
+            <input type="password" id="password-input" placeholder="請輸入員編" class="w-full bg-zinc-700 text-white p-3 mb-2 border-2 border-zinc-900 pixel-font outline-none uppercase tracking-widest">
         </div>
+
         <button onclick="login()" class="pixel-btn w-full bg-blue-600 p-4 text-center pixel-font text-xl pixel-border font-bold">
             驗證並進入公會 ✦
         </button>
+
         <div class="mt-8 text-center border-t border-zinc-700 pt-4">
             <button onclick="openAdminBoard()" class="text-xs text-zinc-500 hover:text-yellow-400 pixel-font transition-colors">
                 🖥️ 開啟大螢幕投影模式 (HR專用)
@@ -158,18 +150,14 @@
             </div>
         </div>
 
-        <div id="avatar-stage-container" class="relative w-full pixel-border flex overflow-hidden transition-all duration-500 mb-6 bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-            <div class="w-36 flex-shrink-0 flex items-end justify-center">
-                <div id="svg-avatar-wrapper" class="w-36 h-36 avatar-animate"></div>
-            </div>
-            <div class="flex-1 border-l border-zinc-700 flex flex-col justify-center px-3 py-3 gap-2 min-w-0">
-                <div class="text-[10px] pixel-font text-zinc-500 mb-1">⚔ 戰術技能</div>
-                <div id="equipped-skills-display" class="flex flex-col gap-2"></div>
-            </div>
+        <div id="avatar-stage-container" class="relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 bg-zinc-800 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+            <div id="svg-avatar-wrapper" class="w-40 h-40 avatar-animate relative"></div>
+            <div id="equipped-skills-display" class="absolute top-2 left-0 right-0 flex justify-center gap-2 px-4 flex-wrap"></div>
         </div>
 
         <div class="flex-grow space-y-3 overflow-y-auto pb-4">
             <h2 class="text-sm pixel-font text-zinc-400 mb-2">▶ 課程進化路徑</h2>
+
             <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 relative group" id="quest-1">
                 <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q1-icon">👔</div>
                 <div class="flex-grow">
@@ -178,6 +166,7 @@
                 </div>
                 <button id="btn-q1" onclick="showAvatarOptions(1)" class="pixel-btn bg-blue-600 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]">掃描解析</button>
             </div>
+
             <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 opacity-50 relative" id="quest-2">
                 <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q2-icon">❓</div>
                 <div class="flex-grow">
@@ -186,6 +175,7 @@
                 </div>
                 <button id="btn-q2" onclick="showAvatarOptions(2)" class="pixel-btn bg-zinc-700 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]" disabled>鎖定</button>
             </div>
+
             <div class="bg-zinc-800 border-2 border-zinc-600 p-3 flex items-center gap-3 opacity-50 relative" id="quest-3">
                 <div class="bg-zinc-900 w-10 h-10 flex items-center justify-center text-xl border border-zinc-700" id="q3-icon">❓</div>
                 <div class="flex-grow">
@@ -194,6 +184,7 @@
                 </div>
                 <button id="btn-q3" onclick="showAvatarOptions(3)" class="pixel-btn bg-zinc-700 text-xs pixel-font px-2 py-2 border-2 border-white min-w-[70px]" disabled>鎖定</button>
             </div>
+
             <div class="bg-indigo-900/40 border-2 border-indigo-500 p-3 flex flex-col gap-2 opacity-50 mt-6" id="quest-final">
                 <div class="flex items-center gap-3">
                     <div class="bg-indigo-950 w-10 h-10 flex items-center justify-center text-xl border border-indigo-400">⚔️</div>
@@ -209,29 +200,69 @@
         </div>
     </div>
 
+    <!-- 回應牆問題輸入 Modal -->
+    <div id="question-modal" class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center p-6">
+        <div class="w-full max-w-sm bg-zinc-900 border-2 border-yellow-500 p-6">
+            <div id="question-step" class="text-xs pixel-font text-yellow-400 mb-2"></div>
+            <div id="question-text" class="text-lg font-bold text-white mb-4 leading-snug"></div>
+            <textarea id="question-answer" rows="3" placeholder="在這裡打下你的答案..." class="w-full bg-zinc-800 text-white p-3 border border-zinc-600 pixel-font outline-none resize-none text-sm mb-4"></textarea>
+            <button onclick="submitQuestionAnswer()" class="pixel-btn w-full bg-yellow-500 text-black font-bold pixel-font py-3 border-2 border-white text-sm">提交並解鎖下一階段 →</button>
+            <button onclick="closeModal('question-modal')" class="w-full text-zinc-500 text-xs mt-3 pixel-font py-2">跳過（直接解鎖）</button>
+        </div>
+    </div>
+
     <!-- 大螢幕投影畫面 -->
     <div id="screen-admin" class="screen flex-col h-screen w-full bg-zinc-950 p-6 overflow-hidden">
-        <div class="flex justify-between items-center mb-4 pb-4 border-b border-zinc-800">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
             <div>
                 <h1 class="text-4xl pixel-font text-yellow-400 flex items-center gap-4">
-                    <span class="animate-pulse" aria-hidden="true">🔴</span> 良興主管公會 - 實戰公會牆
+                    <span class="animate-pulse">🔴</span> 良興主管公會 - 實戰公會牆
                 </h1>
-                <p class="text-zinc-500 mt-1">每 5 秒自動更新學員的最新進化狀態與戰術實裝。</p>
+                <p class="text-zinc-500 mt-2">每 5 秒自動更新學員的最新進化狀態與戰術實裝。</p>
             </div>
             <div class="flex gap-4">
+                <button onclick="switchScreen('screen-wordcloud')" class="pixel-btn bg-purple-700 px-4 py-3 text-white pixel-font border-2 border-white text-sm">
+                    💬 回應牆
+                </button>
                 <button onclick="downloadCSV()" class="pixel-btn bg-green-600 px-6 py-3 text-white pixel-font border-2 border-white">
                     📊 下載訓練紀錄 (CSV)
                 </button>
-                <button onclick="switchScreen('screen-login'); clearInterval(adminPollingInterval);" class="pixel-btn bg-zinc-700 px-4 py-3 text-white pixel-font border-2 border-zinc-500">
+                <button onclick="switchScreen('screen-login'); clearInterval(adminPollingInterval); clearInterval(wordcloudInterval);" class="pixel-btn bg-zinc-700 px-4 py-3 text-white pixel-font border-2 border-zinc-500">
                     返回
                 </button>
             </div>
         </div>
-        <div id="admin-grid" aria-live="polite" aria-label="學員進化狀態列表" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 overflow-y-auto pb-10 content-start">
+        <div id="admin-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 overflow-y-auto pb-10 content-start">
         </div>
     </div>
 
+    <!-- 回應牆大屏 -->
+    <div id="screen-wordcloud" class="screen flex-col h-screen w-full bg-zinc-950 overflow-hidden relative">
+        <style>
+            @keyframes floatIn {
+                0%   { opacity: 0; transform: translateY(30px) rotate(var(--rot)); }
+                100% { opacity: 1; transform: translateY(0)     rotate(var(--rot)); }
+            }
+            .answer-chip { animation: floatIn 0.7s ease forwards; }
+        </style>
+        <div class="flex justify-between items-center px-8 py-4 border-b border-zinc-800 z-10 flex-shrink-0">
+            <div>
+                <div id="wc-question-label" class="text-xs pixel-font text-yellow-400 mb-1"></div>
+                <div id="wc-question-text" class="text-xl font-bold text-white"></div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="setWCQuestion(1)" id="wc-btn-1" class="pixel-btn px-3 py-2 text-xs pixel-font border-2 border-white bg-blue-700">Q1</button>
+                <button onclick="setWCQuestion(2)" id="wc-btn-2" class="pixel-btn px-3 py-2 text-xs pixel-font border-2 border-white bg-zinc-700">Q2</button>
+                <button onclick="setWCQuestion(3)" id="wc-btn-3" class="pixel-btn px-3 py-2 text-xs pixel-font border-2 border-white bg-zinc-700">Q3</button>
+                <button onclick="switchScreen('screen-admin')" class="pixel-btn bg-zinc-700 px-4 py-2 text-white pixel-font border-2 border-zinc-500 text-xs">← 公會牆</button>
+            </div>
+        </div>
+        <div id="wc-count" class="text-xs text-zinc-500 pixel-font px-8 py-1 flex-shrink-0"></div>
+        <div id="wc-cloud" class="flex-1 flex flex-wrap gap-3 p-8 overflow-y-auto content-start items-start"></div>
+    </div>
+
     <script>
+        // ================= 資料庫與狀態設定 =================
         let userState = {
             empId: '', name: '', dept: '',
             quests: { q1: false, q2: false, q3: false },
@@ -241,7 +272,7 @@
 
         let itemDB = {};
 
-        let avatarOptions = {
+        const avatarOptions = {
             1: [
                 { id: 'suit',    title: '專業西裝',   desc: '制度與標準的捍衛者', icon: '👔', color: 'blue' },
                 { id: 'casual',  title: '科技休閒服', desc: '敏捷與變通的引導者', icon: '👕', color: 'slate' },
@@ -262,12 +293,7 @@
         let html5QrcodeScanner = null;
         let adminPollingInterval = null;
 
-        function switchScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-            if (screenId === 'screen-admin') document.getElementById('app-body').classList.remove('max-w-md', 'mx-auto');
-            else document.getElementById('app-body').classList.add('max-w-md', 'mx-auto');
-        }
+        // ================= 核心輔助函式 =================
 
         function showLoader(text = '處理中...') {
             document.getElementById('loader-text').innerText = text;
@@ -279,6 +305,7 @@
             document.getElementById(id).classList.add('hidden');
         }
 
+        // ================= 頁面載入：動態抓部門清單 =================
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await callAPI('getDepts');
@@ -293,11 +320,14 @@
             }
         });
 
+        // ================= API 呼叫邏輯（已換成 fetch）=================
         async function login() {
             const dept  = document.getElementById('dept-input').value;
             const name  = document.getElementById('name-input').value.trim();
             const empId = document.getElementById('password-input').value.trim().toUpperCase();
+
             if (!name || !empId) return alert('姓名與員編不可為空！');
+
             showLoader('聯絡人資資料庫驗證身分...');
             try {
                 const res = await callAPI('login', { dept, name, empId });
@@ -317,12 +347,7 @@
         async function fetchItemDatabase() {
             showLoader('同步雲端戰術圖鑑...');
             try {
-                const [items, opts] = await Promise.all([
-                    callAPI('getItems'),
-                    callAPI('getAvatarOptions').catch(() => null)
-                ]);
-                itemDB = items;
-                if (opts && (opts[1] || opts['1'])) avatarOptions = opts;
+                itemDB = await callAPI('getItems');
                 hideLoader();
                 renderDashboard();
                 switchScreen('screen-dashboard');
@@ -339,14 +364,11 @@
             document.getElementById('svg-avatar-wrapper').innerHTML = renderSVG(userState.avatarConfig);
 
             const skillsDiv = document.getElementById('equipped-skills-display');
-            skillsDiv.innerHTML = userState.equippedItems.length === 0
-                ? '<div class="text-[10px] text-zinc-600">完成所有模組後可實裝</div>'
-                : userState.equippedItems.map(code => {
-                    const item = itemDB[code];
-                    if (!item) return '';
-                    return `<div class="flex items-center gap-2"><div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm rounded-full flex-shrink-0" aria-hidden="true">${item.icon}</div><div class="text-xs text-${item.color}-200 truncate">${item.title}</div></div>`;
-                }).join('');
-
+            skillsDiv.innerHTML = userState.equippedItems.map(code => {
+                const item = itemDB[code];
+                if (!item) return '';
+                return `<div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(255,255,255,0.3)] rounded-full avatar-animate cursor-pointer" title="${item.title}">${item.icon}</div>`;
+            }).join('');
             document.getElementById('slot-count').innerText = `(${userState.equippedItems.length}/3)`;
 
             const st = userState.quests;
@@ -400,46 +422,16 @@
             document.getElementById('dash-level').innerText = levelText;
             const avatarStage = document.getElementById('avatar-stage-container');
             if (avatarStage) {
-                avatarStage.className = `relative w-full pixel-border flex overflow-hidden transition-all duration-500 mb-6 ${stageBgClass}`;
+                avatarStage.className = `relative w-full h-56 pixel-border flex flex-col items-center justify-end pb-2 mb-6 overflow-hidden transition-all duration-500 ${stageBgClass}`;
             }
         }
 
         function getOptTitle(modId, val) {
-            const opts = avatarOptions[modId] || avatarOptions[String(modId)] || [];
-            const opt = opts.find(o => o.id === val);
+            const opt = avatarOptions[modId].find(o => o.id === val);
             return opt ? opt.title : '未知';
         }
 
         // ================= 紙娃娃 Modal 邏輯 =================
-        const unlockCodes = { 1: 'A123', 2: 'B456', 3: 'C789' };
-
-        function showAvatarOptions(modId) {
-            const inputCode = prompt(`請輸入【模組 ${modId}】的通關密碼：\n(提示：請看講師簡報)`);
-            if (inputCode === null) return;
-            if (inputCode.trim().toUpperCase() !== unlockCodes[modId]) {
-                return alert('❌ 密碼錯誤！請向講師確認本階段的通關密碼。');
-            }
-            const opts = avatarOptions[modId] || avatarOptions[String(modId)] || [];
-            const container = document.getElementById('scan-options-container');
-            let html = '';
-            opts.forEach(opt => {
-                html += `
-                    <div role="button" tabindex="0"
-                        onclick="saveAvatarChoice(${modId}, '${opt.id}')"
-                        onkeydown="if(event.key==='Enter'||event.key===' ')saveAvatarChoice(${modId}, '${opt.id}')"
-                        class="bg-${opt.color}-900/40 border-2 border-${opt.color}-500 p-3 flex items-center gap-4 cursor-pointer hover:bg-${opt.color}-800/80 transition-colors card-pop-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400">
-                        <div class="text-3xl bg-${opt.color}-800 p-2 border border-black" aria-hidden="true">${opt.icon}</div>
-                        <div class="flex-1 text-left">
-                            <div class="text-sm font-bold text-white mb-1">${opt.title}</div>
-                            <div class="text-[10px] text-zinc-300 leading-tight">${opt.desc}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-            document.getElementById('scan-results-modal').classList.remove('hidden');
-            document.getElementById('scan-results-modal').classList.add('flex');
-        }
 
         async function saveAvatarChoice(modId, choiceId) {
             closeModal('scan-results-modal');
@@ -469,7 +461,11 @@
             html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
             .catch(err => {
                 console.warn("相機啟動失敗:", err);
-                alert("⚠️ 無法直接開啟相機！\n\n1. 如果您是用 LINE 開啟，請點選右上角改用「Safari 或 Chrome」開啟。\n2. 您也可以在下方直接輸入戰術卡代碼來解鎖！");
+                alert(
+                    "⚠️ 無法直接開啟相機！\n\n" +
+                    "1. 如果您是用 LINE 開啟，請點選右上角改用「Safari 或 Chrome」開啟。\n" +
+                    "2. 您也可以在下方直接輸入戰術卡代碼來解鎖！"
+                );
             });
         }
 
@@ -477,8 +473,14 @@
             closeModal('qr-scanner-modal');
             if (html5QrcodeScanner) {
                 try {
-                    html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); }).catch(e => { html5QrcodeScanner.clear(); });
-                } catch (e) { console.log("相機關閉時略過錯誤:", e); }
+                    html5QrcodeScanner.stop().then(() => {
+                        html5QrcodeScanner.clear();
+                    }).catch(e => {
+                        html5QrcodeScanner.clear();
+                    });
+                } catch (e) {
+                    console.log("相機關閉時略過錯誤:", e);
+                }
             }
         }
 
@@ -487,6 +489,7 @@
             const code = decodedText.split(':')[1];
             if (!itemDB[code]) return alert("無效的戰術代碼！資料庫找不到此設定。");
             if (userState.equippedItems.includes(code)) return alert("此戰術您已經實裝過了！");
+
             stopQrScanner();
             showLoader(`正在裝備 ${itemDB[code].title}...`);
             try {
@@ -496,16 +499,23 @@
                     userState.equippedItems.push(code);
                     alert(`✨ 實裝成功：${itemDB[code].title} ✨`);
                     renderDashboard();
-                } else { alert(res.msg); }
-            } catch (err) { hideLoader(); alert('裝備失敗：' + err); }
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('裝備失敗：' + err);
+            }
         }
 
+        // ================= 手動輸入代碼邏輯 =================
         async function submitManualCode() {
             let inputCode = document.getElementById('manual-code-input').value.trim().toUpperCase();
             if (!inputCode) return alert("請輸入戰術代碼！");
             if (inputCode.startsWith('TACTIC:')) inputCode = inputCode.split(':')[1];
             if (!itemDB[inputCode]) return alert("無效的戰術代碼！請檢查卡片上的英數字是否輸入正確。");
             if (userState.equippedItems.includes(inputCode)) return alert("此戰術您已經實裝過了！");
+
             stopQrScanner();
             document.getElementById('manual-code-input').value = '';
             showLoader(`正在裝備 ${itemDB[inputCode].title}...`);
@@ -516,8 +526,13 @@
                     userState.equippedItems.push(inputCode);
                     alert(`✨ 實裝成功：${itemDB[inputCode].title} ✨`);
                     renderDashboard();
-                } else { alert(res.msg); }
-            } catch (err) { hideLoader(); alert('裝備失敗：' + err); }
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                hideLoader();
+                alert('裝備失敗：' + err);
+            }
         }
 
         // ================= 動態 SVG 渲染引擎 =================
@@ -548,7 +563,7 @@
             else if (config.mod3 === 'relaxed') { shoes = '#f8fafc'; armT = 'rotate(10 26 42)';  rightArmT = 'rotate(-10 74 42)'; legT = 'rotate(0)'; }
             else if (config.mod3 === 'sprint')  { shoes = '#dc2626'; armT = 'rotate(45 26 42)';  rightArmT = 'rotate(-45 74 42)'; legT = 'rotate(-20 50 70)'; }
 
-            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;" aria-hidden="true">
+            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;">
                 ${hairBack}
                 <g transform="${legT}">
                     <rect x="36" y="70" width="12" height="22" fill="${pants}" />
@@ -572,18 +587,145 @@
             </svg>`;
         }
 
+        // ================= 回應牆：問題解鎖流程 =================
+        const QUESTIONS = {
+            1: { step: '第一關解鎖', text: '你今天來，最想帶回去一件什麼？' },
+            2: { step: '第二關解鎖', text: '影片裡，你最想出手阻止的那個瞬間是什麼？' },
+            3: { step: '第三關解鎖', text: '你的錨點是哪個力？用一句話說為什麼。' }
+        };
+
+        let pendingModId = null;
+
+        // 攔截原本的 showAvatarOptions，改為先顯示問題
+        const _origShowAvatarOptions = showAvatarOptions;
+        function showAvatarOptions(modId) {
+            pendingModId = modId;
+            const q = QUESTIONS[modId];
+            document.getElementById('question-step').innerText = q.step;
+            document.getElementById('question-text').innerText = q.text;
+            document.getElementById('question-answer').value = '';
+            document.getElementById('question-modal').classList.remove('hidden');
+            document.getElementById('question-modal').classList.add('flex');
+        }
+
+        async function submitQuestionAnswer() {
+            const answer = document.getElementById('question-answer').value.trim();
+            closeModal('question-modal');
+            // 有答案才送出
+            if (answer && userState.empId) {
+                try {
+                    await callAPI('submitAnswer', {
+                        empId: userState.empId,
+                        name: userState.name,
+                        dept: userState.dept,
+                        questionId: pendingModId,
+                        answer
+                    });
+                } catch(e) { /* 靜默失敗，不阻擋解鎖 */ }
+            }
+            // 繼續原本的解鎖流程（直接顯示選項，不需密碼）
+            showAvatarOptionsDirect(pendingModId);
+        }
+
+        function showAvatarOptionsDirect(modId) {
+            const container = document.getElementById('scan-options-container');
+            container.innerHTML = '';
+            avatarOptions[modId].forEach(opt => {
+                container.innerHTML += `
+                    <div onclick="saveAvatarChoice(${modId}, '${opt.id}')" class="bg-${opt.color}-900/40 border-2 border-${opt.color}-500 p-3 flex items-center gap-4 cursor-pointer hover:bg-${opt.color}-800/80 transition-all card-pop-in">
+                        <div class="text-3xl bg-${opt.color}-800 p-2 border border-black">${opt.icon}</div>
+                        <div class="flex-1 text-left">
+                            <div class="text-sm font-bold text-white mb-1">${opt.title}</div>
+                            <div class="text-[10px] text-zinc-300 leading-tight">${opt.desc}</div>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('scan-results-modal').classList.remove('hidden');
+            document.getElementById('scan-results-modal').classList.add('flex');
+        }
+
+        // ================= 回應牆：文字雲大屏 =================
+        let currentWCQuestion = 1;
+        let wordcloudInterval = null;
+        const FORCE_COLORS = ['#ED93B1','#FAC775','#F0997B','#85B7EB','#B4B2A9','#A5F3A0','#FDE68A','#C4B5FD'];
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if (screenId === 'screen-admin' || screenId === 'screen-wordcloud') {
+                document.getElementById('app-body').classList.remove('max-w-md', 'mx-auto');
+            } else {
+                document.getElementById('app-body').classList.add('max-w-md', 'mx-auto');
+            }
+            if (screenId === 'screen-wordcloud') {
+                setWCQuestion(currentWCQuestion);
+                wordcloudInterval = setInterval(() => fetchAndRenderWordCloud(currentWCQuestion), 5000);
+            } else {
+                clearInterval(wordcloudInterval);
+            }
+        }
+
+        function setWCQuestion(qId) {
+            currentWCQuestion = qId;
+            const q = QUESTIONS[qId];
+            document.getElementById('wc-question-label').innerText = q.step;
+            document.getElementById('wc-question-text').innerText = q.text;
+            [1,2,3].forEach(i => {
+                document.getElementById(`wc-btn-${i}`).className =
+                    `pixel-btn px-3 py-2 text-xs pixel-font border-2 border-white ${i === qId ? 'bg-yellow-500 text-black' : 'bg-zinc-700 text-white'}`;
+            });
+            fetchAndRenderWordCloud(qId);
+        }
+
+        async function fetchAndRenderWordCloud(qId) {
+            try {
+                const answers = await callAPI('getAnswers', { questionId: qId });
+                renderWordCloud(answers);
+            } catch(e) { /* 靜默失敗 */ }
+        }
+
+        function renderWordCloud(answers) {
+            const cloud = document.getElementById('wc-cloud');
+            document.getElementById('wc-count').innerText = `共 ${answers.length} 則回應`;
+            cloud.innerHTML = '';
+            if (answers.length === 0) {
+                cloud.innerHTML = '<div class="text-zinc-600 pixel-font text-lg w-full text-center pt-20">等待學員回應中...</div>';
+                return;
+            }
+            answers.forEach((ans, i) => {
+                const rot = ((i * 7) % 21) - 10;
+                const size = 13 + (i % 5) * 4;
+                const color = FORCE_COLORS[i % FORCE_COLORS.length];
+                const delay = Math.min(i * 0.08, 2);
+                const chip = document.createElement('div');
+                chip.className = 'answer-chip';
+                chip.style.cssText = `
+                    --rot: ${rot}deg;
+                    font-size: ${size}px;
+                    color: ${color};
+                    background: rgba(255,255,255,0.04);
+                    border: 1px solid ${color}55;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    max-width: 320px;
+                    word-break: break-all;
+                    line-height: 1.5;
+                    animation-delay: ${delay}s;
+                    opacity: 0;
+                    font-family: 'Noto Sans TC', sans-serif;
+                `;
+                chip.innerHTML = `<span class="text-xs opacity-50 mr-1">${ans.name}</span>${ans.answer}`;
+                cloud.appendChild(chip);
+            });
+        }
+
         // ================= 大螢幕投影（Polling）=================
         let allHeroesCache = [];
 
         async function openAdminBoard() {
             showLoader('載入戰術圖鑑...');
             try {
-                const [items, opts] = await Promise.all([
-                    callAPI('getItems'),
-                    callAPI('getAvatarOptions').catch(() => null)
-                ]);
-                itemDB = items;
-                if (opts && (opts[1] || opts['1'])) avatarOptions = opts;
+                itemDB = await callAPI('getItems');
                 hideLoader();
                 switchScreen('screen-admin');
                 fetchAdminData();
@@ -599,88 +741,49 @@
                 const data = await callAPI('getAllHeroes');
                 allHeroesCache = data;
                 const grid = document.getElementById('admin-grid');
+                grid.innerHTML = '';
 
                 if (data.length === 0) {
                     grid.innerHTML = '<div class="col-span-full text-center text-zinc-500 py-20 pixel-font text-xl">等待學員報到...</div>';
                     return;
                 }
 
-                let gridHtml = '';
                 data.forEach(user => {
-                    let borderColor = 'border-zinc-600';
-                    let cardOpacity = 'opacity-60';
-                    let badgeHtml = '';
-                    let avatarBg = 'bg-zinc-800/50';
+                    let bg = 'bg-zinc-800 border-zinc-600';
+                    let innerBg = "bg-zinc-800/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]";
 
                     if (user.quests.q3) {
-                        borderColor = 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]';
-                        cardOpacity = '';
-                        avatarBg = 'bg-gradient-to-t from-yellow-700/40 to-zinc-900';
-                        badgeHtml = `<span class="text-xs text-yellow-300 border border-yellow-600/60 bg-yellow-500/10 px-1.5 py-px rounded-full pixel-font flex-shrink-0">✦ 完全體</span>`;
+                        bg = 'bg-yellow-900/20 border-yellow-600 shadow-[0_0_15px_rgba(234,179,8,0.3)]';
+                        innerBg = "bg-gradient-to-t from-yellow-700/60 to-zinc-900";
                     } else if (user.quests.q2) {
-                        borderColor = 'border-orange-500';
-                        cardOpacity = '';
-                        avatarBg = 'bg-gradient-to-t from-orange-900/40 to-zinc-900';
-                        badgeHtml = `<span class="text-xs text-orange-300 border border-orange-600/60 bg-orange-500/10 px-1.5 py-px rounded-full pixel-font flex-shrink-0">穿著中</span>`;
+                        bg = 'bg-orange-900/20 border-orange-600';
+                        innerBg = "bg-gradient-to-t from-orange-900/60 to-zinc-900";
                     } else if (user.quests.q1) {
-                        borderColor = 'border-blue-500';
-                        cardOpacity = '';
-                        avatarBg = 'bg-gradient-to-t from-blue-900/40 to-zinc-900';
-                        badgeHtml = `<span class="text-xs text-blue-300 border border-blue-600/60 bg-blue-500/10 px-1.5 py-px rounded-full pixel-font flex-shrink-0">穿著中</span>`;
+                        bg = 'bg-blue-900/20 border-blue-600';
+                        innerBg = "bg-gradient-to-t from-blue-900/60 to-zinc-900";
                     }
 
-                    const cfg = user.avatarConfig || {};
-                    const getOpts = mod => avatarOptions[mod] || avatarOptions[String(mod)] || [];
-                    const mod1Opt = getOpts(1).find(o => o.id === cfg.mod1);
-                    const mod2Opt = getOpts(2).find(o => o.id === cfg.mod2);
-                    const mod3Opt = getOpts(3).find(o => o.id === cfg.mod3);
-
-                    const descHtml = [
-                        mod1Opt ? `<div class="text-xs text-zinc-300 leading-snug truncate">#${mod1Opt.desc}</div>` : `<div class="text-xs text-zinc-700 leading-snug">—</div>`,
-                        mod2Opt ? `<div class="text-xs text-zinc-300 leading-snug truncate">#${mod2Opt.desc}</div>` : `<div class="text-xs text-zinc-700 leading-snug">—</div>`,
-                        mod3Opt ? `<div class="text-xs text-zinc-300 leading-snug truncate">#${mod3Opt.desc}</div>` : `<div class="text-xs text-zinc-700 leading-snug">—</div>`,
-                    ].join('');
-
+                    let svg = renderSVG(user.avatarConfig, "100px");
                     let itemsHtml = user.equippedItemsCodes.map(code => {
                         const i = itemDB[code];
-                        return i ? `<div class="text-xs bg-black/60 border border-${i.color}-500/70 px-1.5 py-0.5 truncate w-full mt-0.5 text-left text-${i.color}-200">${i.icon} ${i.title}</div>` : '';
+                        return i ? `<div class="text-[9px] bg-black border border-${i.color}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
                     }).join('');
-                    if (!itemsHtml) itemsHtml = '<div class="text-xs text-zinc-700 mt-0.5 px-1">— 待解鎖 —</div>';
+                    if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
 
-                    const svg = renderSVG(cfg, "88px");
-
-                    gridHtml += `
-                        <div class="border-2 ${borderColor} ${cardOpacity} card-pop-in bg-zinc-900 h-72 overflow-hidden flex flex-col transition-all duration-500">
-
-                            <!-- 頂部：部門 + 姓名 + badge -->
-                            <div class="px-2.5 pt-2 pb-1.5 border-b border-zinc-700/60 bg-zinc-800/40">
-                                <div class="text-xs text-zinc-500 pixel-font leading-none mb-0.5 truncate">${user.dept}</div>
-                                <div class="flex items-center gap-1.5">
-                                    <div class="text-base font-black text-white leading-tight truncate">${user.name}</div>
-                                    ${badgeHtml}
-                                </div>
+                    grid.innerHTML += `
+                        <div class="border-2 ${bg} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
+                            <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
+                            <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
+                                ${svg}
                             </div>
-
-                            <!-- 中段：人偶左 + hashtag 右 -->
-                            <div class="flex flex-1 min-h-0">
-                                <div class="w-24 flex-shrink-0 flex items-center justify-center ${avatarBg} border-r border-zinc-700/60">
-                                    ${svg}
-                                </div>
-                                <div class="flex-1 flex flex-col justify-center px-2.5 gap-1.5 min-w-0">
-                                    ${descHtml}
-                                </div>
-                            </div>
-
-                            <!-- 底部：戰術技能 -->
-                            <div class="px-2.5 pb-2 border-t-2 border-zinc-700 pt-1.5">
-                                <div class="text-xs text-zinc-500 pixel-font mb-1 opacity-70">⚔ 戰術技能</div>
+                            <div class="text-[9px] text-zinc-400 pixel-font mt-2 w-full truncate">${user.dept}</div>
+                            <div class="text-sm font-black text-white w-full truncate">${user.name}</div>
+                            <div class="w-full pt-1 border-t border-zinc-800 mt-auto">
                                 ${itemsHtml}
                             </div>
                         </div>
                     `;
                 });
-                grid.innerHTML = gridHtml;
-
             } catch (err) {
                 console.error('公會牆更新失敗:', err);
             }
