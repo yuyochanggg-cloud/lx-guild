@@ -588,17 +588,25 @@
         }
 
         // ================= 回應牆：問題解鎖流程 =================
+        // ★ 密碼設定區 — 課前在這裡改成你想要的詞 ★
+        const UNLOCK_CODES = { 1: 'A123', 2: 'B456', 3: 'C789' };
+
         const QUESTIONS = {
-            1: { step: '第一關解鎖', text: '你今天來，最想帶回去一件什麼？' },
-            2: { step: '第二關解鎖', text: '影片裡，你最想出手阻止的那個瞬間是什麼？' },
-            3: { step: '第三關解鎖', text: '你的錨點是哪個力？用一句話說為什麼。' }
+            1: { step: '第一關', text: '你今天來，最想帶回去一件什麼？' },
+            2: { step: '第二關', text: '影片裡，你最想出手阻止的那個瞬間是什麼？' },
+            3: { step: '第三關', text: '你的錨點是哪個力？用一句話說為什麼。' }
         };
 
         let pendingModId = null;
 
-        // 攔截原本的 showAvatarOptions，改為先顯示問題
-        const _origShowAvatarOptions = showAvatarOptions;
+        // 流程：密碼 → 問題 → 選裝備
         function showAvatarOptions(modId) {
+            const code = prompt(`請輸入第 ${modId} 關通關密碼：`);
+            if (code === null) return; // 按取消
+            if (code.trim().toUpperCase() !== UNLOCK_CODES[modId].toUpperCase()) {
+                return alert('❌ 密碼錯誤！請向講師確認。');
+            }
+            // 密碼正確 → 顯示問題框
             pendingModId = modId;
             const q = QUESTIONS[modId];
             document.getElementById('question-step').innerText = q.step;
@@ -611,7 +619,7 @@
         async function submitQuestionAnswer() {
             const answer = document.getElementById('question-answer').value.trim();
             closeModal('question-modal');
-            // 有答案才送出
+            // 有答案才送出到回應牆
             if (answer && userState.empId) {
                 try {
                     await callAPI('submitAnswer', {
@@ -623,7 +631,7 @@
                     });
                 } catch(e) { /* 靜默失敗，不阻擋解鎖 */ }
             }
-            // 繼續原本的解鎖流程（直接顯示選項，不需密碼）
+            // 問題回答完 → 進選裝備
             showAvatarOptionsDirect(pendingModId);
         }
 
