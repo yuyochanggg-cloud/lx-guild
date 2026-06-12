@@ -272,6 +272,11 @@
 
         let itemDB = {};
 
+        // 後端 itemDB 的 color 可能填非 Tailwind 標準色名，會導致 class 靜默失效。
+        // 用白名單過濾，非法色名一律 fallback 成 zinc。
+        const SAFE_COLORS = new Set(['slate','gray','zinc','neutral','stone','red','orange','amber','yellow','lime','green','emerald','teal','cyan','sky','blue','indigo','violet','purple','fuchsia','pink','rose']);
+        function safeColor(c) { return SAFE_COLORS.has(c) ? c : 'zinc'; }
+
         const avatarOptions = {
             1: [
                 { id: 'suit',    title: '專業西裝',   desc: '制度與標準的捍衛者', icon: '👔', color: 'blue' },
@@ -367,7 +372,8 @@
             skillsDiv.innerHTML = userState.equippedItems.map(code => {
                 const item = itemDB[code];
                 if (!item) return '';
-                return `<div class="bg-black/80 border border-${item.color}-500 w-8 h-8 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(255,255,255,0.3)] rounded-full avatar-animate cursor-pointer" title="${item.title}">${item.icon}</div>`;
+                const c = safeColor(item.color);
+                return `<div class="bg-black/80 border border-${c}-500 w-8 h-8 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(255,255,255,0.3)] rounded-full avatar-animate cursor-pointer" title="${item.title}">${item.icon}</div>`;
             }).join('');
             document.getElementById('slot-count').innerText = `(${userState.equippedItems.length}/3)`;
 
@@ -716,7 +722,8 @@
                     padding: 6px 12px;
                     border-radius: 4px;
                     max-width: 320px;
-                    word-break: break-all;
+                    overflow-wrap: break-word;
+                    word-break: normal;
                     line-height: 1.5;
                     animation-delay: ${delay}s;
                     opacity: 0;
@@ -774,7 +781,7 @@
                     let svg = renderSVG(user.avatarConfig, "100px");
                     let itemsHtml = user.equippedItemsCodes.map(code => {
                         const i = itemDB[code];
-                        return i ? `<div class="text-[9px] bg-black border border-${i.color}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
+                        return i ? `<div class="text-[9px] bg-black border border-${safeColor(i.color)}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
                     }).join('');
                     if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
 
