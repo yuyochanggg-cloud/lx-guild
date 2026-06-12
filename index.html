@@ -68,6 +68,7 @@
                 display: grid !important;
                 grid-template-columns: repeat(4, 1fr) !important;
                 gap: 6px !important; overflow: visible !important; padding: 0 !important;
+                font-size: 13px !important;   /* 列印固定字級，不受投影調整影響 */
             }
             #admin-grid > div {
                 break-inside: avoid; page-break-inside: avoid;
@@ -267,12 +268,14 @@
                 <button onclick="window.print()" class="pixel-btn bg-sky-600 px-4 py-3 text-white pixel-font border-2 border-white text-sm">
                     🖨 列印公會牆
                 </button>
+                <button onclick="setWallFont(-1)" class="pixel-btn bg-zinc-700 px-3 py-3 text-white pixel-font border-2 border-zinc-500 text-sm">字−</button>
+                <button onclick="setWallFont(1)" class="pixel-btn bg-zinc-700 px-3 py-3 text-white pixel-font border-2 border-zinc-500 text-sm">字＋</button>
                 <button onclick="switchScreen('screen-login'); clearInterval(adminPollingInterval); clearInterval(wordcloudInterval);" class="pixel-btn bg-zinc-700 px-4 py-3 text-white pixel-font border-2 border-zinc-500">
                     返回
                 </button>
             </div>
         </div>
-        <div id="admin-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 overflow-y-auto pb-10 content-start">
+        <div id="admin-grid" style="font-size:16px" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 overflow-y-auto pb-10 content-start">
         </div>
     </div>
 
@@ -1008,6 +1011,14 @@
             }
         }
 
+        // 公會牆字級即時調整（投影用，不影響列印）
+        let wallFont = 16;
+        function setWallFont(d) {
+            wallFont = Math.max(11, Math.min(28, wallFont + d));
+            const g = document.getElementById('admin-grid');
+            if (g) g.style.fontSize = wallFont + 'px';
+        }
+
         async function fetchAdminData() {
             try {
                 const data = await callAPI('getAllHeroes');
@@ -1043,25 +1054,25 @@
                     let svg = renderSVG(user.avatarConfig, "100px");
                     let itemsHtml = user.equippedItemsCodes.map(code => {
                         const i = itemDB[code];
-                        return i ? `<div class="text-[9px] bg-black border border-${safeColor(i.color)}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
+                        return i ? `<div style="font-size:0.62em" class="bg-black border border-${safeColor(i.color)}-500 px-1 truncate w-full mt-1 text-left">${i.icon} ${i.title}</div>` : '';
                     }).join('');
-                    if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
+                    if (!itemsHtml) itemsHtml = '<div style="font-size:0.62em" class="text-zinc-600 mt-1">尚未實裝戰術</div>';
 
                     // 養成歷程意義（三個選擇的原型）
                     const meanings = [1, 2, 3].map(m => getOpt(m, user.avatarConfig['mod' + m]).desc).filter(Boolean).join(' · ');
-                    const meaningsHtml = meanings ? `<div class="text-[8px] text-amber-200/80 leading-tight w-full mt-1 px-0.5 line-clamp-2">${meanings}</div>` : '';
+                    const meaningsHtml = meanings ? `<div style="font-size:0.56em" class="text-amber-200/80 leading-tight w-full mt-1 px-0.5 line-clamp-2">${meanings}</div>` : '';
                     // 30 天承諾（需後端回傳 commitment 欄位）
-                    const commitHtml = user.commitment ? `<div class="text-[8px] text-zinc-300 leading-snug w-full mt-1 px-0.5 text-left border-t border-zinc-800 pt-1">📝 ${user.commitment}</div>` : '';
+                    const commitHtml = user.commitment ? `<div style="font-size:0.56em" class="text-zinc-300 leading-snug w-full mt-1 px-0.5 text-left border-t border-zinc-800 pt-1">📝 ${user.commitment}</div>` : '';
 
                     grid.innerHTML += `
                         <div class="border-2 ${bg}${ringCls} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-auto min-h-[270px] overflow-hidden transition-all duration-500">
                             ${newBadge}
-                            <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
+                            <div class="absolute top-1 left-1 pixel-font bg-black px-1 text-zinc-400 border border-zinc-700" style="font-size:0.5em">ID:${user.empId}</div>
                             <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
                                 ${svg}
                             </div>
-                            <div class="text-[9px] text-zinc-400 pixel-font mt-2 w-full truncate">${user.dept}</div>
-                            <div class="text-sm font-black text-white w-full truncate">${user.name}</div>
+                            <div class="text-zinc-400 pixel-font mt-2 w-full truncate" style="font-size:0.62em">${user.dept}</div>
+                            <div class="font-black text-white w-full truncate" style="font-size:1em">${user.name}</div>
                             ${meaningsHtml}
                             <div class="w-full pt-1 border-t border-zinc-800 mt-2">
                                 ${itemsHtml}
