@@ -558,7 +558,7 @@
             // 頂部橫帶
             ctx.fillStyle = '#f5b037'; ctx.fillRect(20, 20, W - 40, 145);
             ctx.fillStyle = '#18181b'; ctx.font = '900 60px "DotGothic16","Noto Sans TC"';
-            ctx.fillText('🏆 養成完成', W / 2, 118);
+            ctx.fillText('✦ 養成完成 ✦', W / 2, 118);
 
             // 角色舞台（金色高光只留給這裡）
             const sx = W / 2 - 165, sy = 185, ss = 330;
@@ -589,7 +589,7 @@
             ctx.beginPath(); ctx.moveTo(80, 695); ctx.lineTo(W - 80, 695); ctx.stroke();
 
             // 我的五力裝備（滿版橫列，灰底，與承諾框同寬同風格）
-            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "Noto Sans TC"'; ctx.textAlign = 'center';
             ctx.fillText('▶ 我的五力裝備 ◀', W / 2, 740);
             equippedForces.forEach((o, i) => {
                 const ry = fy + i * (rowH + gap);
@@ -607,7 +607,7 @@
 
             // 30 天承諾
             const commit = (document.getElementById('hero-commit') && document.getElementById('hero-commit').value || '').trim();
-            ctx.textAlign = 'center'; ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"';
+            ctx.textAlign = 'center'; ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "Noto Sans TC"';
             ctx.fillText('▶ 我的 30 天承諾 ◀', W / 2, commitLabelY);
             ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.strokeStyle = '#52525b'; ctx.lineWidth = 2;
             roundRect(ctx, 40, commitBoxY, W - 80, commitBoxH, 14); ctx.fill(); ctx.stroke();
