@@ -724,56 +724,86 @@
             }
         }
 
-        // ================= 動態 SVG 渲染引擎 =================
+        // ================= 像素角色渲染引擎（16-bit 風）=================
         function renderSVG(config, size = "100%") {
-            let skin = '#fcd34d', body = '#d4d4d8', pants = '#a1a1aa', shoes = 'transparent', extra = '';
-            let armT = 'rotate(0)', rightArmT = 'rotate(0)', legT = 'rotate(0)';
-            let hairBack = '', hairFront = '', faceFeatures = '';
+            const W = 24, H = 30;
+            const grid = Array.from({ length: H }, () => Array(W).fill('.'));
+            const px = (x, y, t) => { if (x >= 0 && x < W && y >= 0 && y < H) grid[y][x] = t; };
+            const box = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px(x, y, t); };
+            const outBox = (x0, y0, x1, y1, fill, shadow) => {
+                box(x0, y0, x1, y1, 'O');
+                box(x0 + 1, y0 + 1, x1 - 1, y1 - 1, fill);
+                if (shadow) { box(x1 - 1, y0 + 1, x1 - 1, y1 - 1, shadow); box(x0 + 1, y1 - 1, x1 - 1, y1 - 1, shadow); }
+            };
 
-            faceFeatures = `<circle cx="43" cy="28" r="2" fill="#171717"/><circle cx="57" cy="28" r="2" fill="#171717"/><path d="M 46 34 Q 50 38 54 34" stroke="#171717" stroke-width="2" stroke-linecap="round" fill="none"/>`;
+            // ---- 配色（依三模組）----
+            let cloth = '#52617a', clothS = '#3a4759', accent = '';
+            if (config.mod1 === 'suit') { cloth = '#2c4a96'; clothS = '#1d3470'; accent = '#dd3b3b'; }
+            else if (config.mod1 === 'uniform') { cloth = '#b5362f'; clothS = '#852720'; accent = '#f2f2f2'; }
 
-            if (config.mod1 === 'suit')    { body = '#1e3a8a'; pants = '#0f172a'; extra = `<polygon points="48,40 52,40 50,56" fill="#dc2626"/>`; }
-            else if (config.mod1 === 'casual')  { body = '#475569'; pants = '#1e293b'; }
-            else if (config.mod1 === 'uniform') { body = '#1e3a8a'; pants = '#171717'; extra = `<rect x="52" y="44" width="10" height="4" fill="#ffffff" opacity="0.9" rx="1"/>`; }
+            let hair = '#4a3526', hairS = '#33241a';
+            if (config.mod2 === 'bun') { hair = '#20202b'; hairS = '#121219'; }
+            else if (config.mod2 === 'wavy') { hair = '#7a3f17'; hairS = '#5a2e10'; }
 
-            if (config.mod2 === 'short') {
-                hairFront = `<path d="M 32 20 Q 50 8 68 20 L 68 14 Q 50 4 32 14 Z" fill="#3f2e21"/><rect x="40" y="22" width="6" height="2" fill="#3f2e21" transform="rotate(10 43 23)"/><rect x="54" y="22" width="6" height="2" fill="#3f2e21" transform="rotate(-10 57 23)"/>`;
-            } else if (config.mod2 === 'bun') {
-                hairBack  = `<circle cx="68" cy="20" r="7" fill="#0f172a"/>`;
-                hairFront = `<path d="M 32 20 Q 50 8 68 20 L 68 14 Q 50 4 32 14 Z" fill="#0f172a"/>`;
-                faceFeatures += `<rect x="36" y="25" width="10" height="6" fill="none" stroke="#171717" stroke-width="1.5" rx="1"/><rect x="54" y="25" width="10" height="6" fill="none" stroke="#171717" stroke-width="1.5" rx="1"/><line x1="46" y1="28" x2="54" y2="28" stroke="#171717" stroke-width="1.5"/>`;
+            let shoe = '#2a2a2a', shoeS = '#161616';
+            if (config.mod3 === 'relaxed') { shoe = '#eef2f6'; shoeS = '#c2cad2'; }
+            else if (config.mod3 === 'sprint') { shoe = '#d83a3a'; shoeS = '#9e2723'; }
+
+            const PAL = {
+                O: '#1b1b22', s: '#f6c89a', S: '#e0a877', e: '#1b1b22', m: '#b5615a',
+                C: cloth, c: clothS, A: accent || cloth, L: '#e8edf2',
+                H: hair, h: hairS, N: '#2b2b33', n: '#1a1a20', F: shoe, f: shoeS
+            };
+
+            // ---- 腿 / 鞋 ----
+            outBox(7, 22, 11, 29, 'N', 'n');
+            outBox(12, 22, 16, 29, 'N', 'n');
+            box(8, 28, 10, 28, 'F'); box(8, 29, 10, 29, 'f');
+            box(13, 28, 15, 28, 'F'); box(13, 29, 15, 29, 'f');
+
+            // ---- 手臂 ----
+            outBox(3, 15, 6, 24, 'C', 'c'); box(4, 23, 5, 24, 's');
+            outBox(17, 15, 20, 24, 'C', 'c'); box(18, 23, 19, 24, 's');
+
+            // ---- 身體 ----
+            outBox(6, 14, 17, 23, 'C', 'c');
+            box(10, 15, 13, 16, 'L');                 // 領子
+            if (accent) box(11, 16, 12, 21, 'A');      // 領帶 / 名牌
+
+            // ---- 頭 ----
+            outBox(6, 1, 17, 13, 's', 'S');
+            box(9, 7, 9, 8, 'e'); box(14, 7, 14, 8, 'e');   // 眼
+            box(11, 10, 12, 10, 'm');                        // 嘴
+
+            // ---- 頭髮（覆蓋頭頂，依造型）----
+            box(6, 1, 17, 4, 'H'); box(6, 1, 17, 1, 'O');
+            box(7, 5, 8, 5, 'H'); box(15, 5, 16, 5, 'H');    // 兩側瀏海
+            box(16, 2, 16, 4, 'h');
+            px(5, 2, 'O'); px(5, 3, 'O'); px(18, 2, 'O'); px(18, 3, 'O');
+            if (config.mod2 === 'bun') {
+                outBox(10, 0, 13, 1, 'H', 'h');              // 頂部小髮髻
+                px(11, 0, 'H'); px(12, 0, 'H');
             } else if (config.mod2 === 'wavy') {
-                hairBack  = `<path d="M 28 20 Q 20 40 35 45 Q 38 40 32 30 Q 50 10 68 30 Q 62 40 65 45 Q 80 40 72 20 Z" fill="#78350f"/>`;
-                hairFront = `<path d="M 32 22 Q 50 10 68 22 L 68 14 Q 50 4 32 14 Z" fill="#78350f"/>`;
-                faceFeatures = `<circle cx="43" cy="28" r="2" fill="#171717"/><circle cx="57" cy="28" r="2" fill="#171717"/><path d="M 44 34 Q 50 40 56 34" stroke="#171717" stroke-width="2" stroke-linecap="round" fill="none"/>`;
+                box(5, 4, 6, 11, 'H'); box(17, 4, 18, 11, 'H');   // 長側髮
+                box(5, 4, 5, 11, 'O'); box(18, 4, 18, 11, 'O');
+                box(17, 5, 17, 11, 'h');
+            } else {
+                box(8, 5, 9, 5, 'H'); box(14, 5, 15, 5, 'H');
             }
 
-            if (config.mod3 === 'action')  { shoes = '#171717'; armT = 'rotate(-25 26 42)'; rightArmT = 'rotate(25 74 42)';  legT = 'rotate(-10 50 70)'; }
-            else if (config.mod3 === 'relaxed') { shoes = '#f8fafc'; armT = 'rotate(10 26 42)';  rightArmT = 'rotate(-10 74 42)'; legT = 'rotate(0)'; }
-            else if (config.mod3 === 'sprint')  { shoes = '#dc2626'; armT = 'rotate(45 26 42)';  rightArmT = 'rotate(-45 74 42)'; legT = 'rotate(-20 50 70)'; }
-
-            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="overflow: visible;">
-                ${hairBack}
-                <g transform="${legT}">
-                    <rect x="36" y="70" width="12" height="22" fill="${pants}" />
-                    <rect x="34" y="92" width="16" height="6"  fill="${shoes}" rx="2"/>
-                    <rect x="52" y="70" width="12" height="22" fill="${pants}" />
-                    <rect x="50" y="92" width="16" height="6"  fill="${shoes}" rx="2"/>
-                </g>
-                <g transform="${armT}">
-                    <rect x="20" y="42" width="12" height="26" fill="${skin}"  rx="4" />
-                    <rect x="20" y="40" width="12" height="14" fill="${body}"  rx="2" />
-                </g>
-                <rect x="32" y="40" width="36" height="30" fill="${body}" rx="2" />
-                ${extra}
-                <g transform="${rightArmT}">
-                    <rect x="68" y="42" width="12" height="26" fill="${skin}"  rx="4" />
-                    <rect x="68" y="40" width="12" height="14" fill="${body}"  rx="2" />
-                </g>
-                <rect x="32" y="14" width="36" height="28" fill="${skin}" rx="8" />
-                ${faceFeatures}
-                ${hairFront}
-            </svg>`;
+            // ---- 合併水平同色 → SVG ----
+            let rects = '';
+            for (let y = 0; y < H; y++) {
+                let x = 0;
+                while (x < W) {
+                    const t = grid[y][x];
+                    if (t === '.') { x++; continue; }
+                    let x2 = x; while (x2 + 1 < W && grid[y][x2 + 1] === t) x2++;
+                    rects += `<rect x="${x}" y="${y}" width="${x2 - x + 1}" height="1.02" fill="${PAL[t]}"/>`;
+                    x = x2 + 1;
+                }
+            }
+            return `<svg viewBox="0 0 ${W} ${H}" width="${size}" height="${size}" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid meet" style="overflow:visible;image-rendering:pixelated;">${rects}</svg>`;
         }
 
         // ================= 回應牆：問題解鎖流程 =================
