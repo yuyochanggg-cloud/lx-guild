@@ -944,6 +944,8 @@
             try {
                 const data = await callAPI('getAllHeroes');
                 allHeroesCache = data;
+                // 最新動態置頂：依最後更新時間由新到舊排序
+                data.sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
                 const grid = document.getElementById('admin-grid');
                 grid.innerHTML = '';
 
@@ -952,7 +954,10 @@
                     return;
                 }
 
-                data.forEach(user => {
+                data.forEach((user, idx) => {
+                    const isNewest = idx === 0;
+                    const ringCls = isNewest ? ' ring-2 ring-yellow-400 shadow-[0_0_22px_rgba(234,179,8,0.55)]' : '';
+                    const newBadge = isNewest ? '<div class="absolute top-1 right-1 z-10 pixel-font text-[8px] bg-yellow-400 text-black px-1 animate-pulse">🆕 最新</div>' : '';
                     let bg = 'bg-zinc-800 border-zinc-600';
                     let innerBg = "bg-zinc-800/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]";
 
@@ -975,7 +980,8 @@
                     if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
 
                     grid.innerHTML += `
-                        <div class="border-2 ${bg} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
+                        <div class="border-2 ${bg}${ringCls} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
+                            ${newBadge}
                             <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
                             <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
                                 ${svg}
