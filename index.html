@@ -211,6 +211,15 @@
         </div>
     </div>
 
+    <!-- 英雄卡（養成完成）Modal -->
+    <div id="hero-modal" class="absolute inset-0 bg-zinc-950/95 z-[60] hidden flex-col items-center justify-center p-4 overflow-y-auto">
+        <canvas id="hero-canvas" class="max-w-full max-h-[78vh] pixel-border bg-zinc-900"></canvas>
+        <div class="flex gap-3 mt-4">
+            <button onclick="saveHeroCard()" class="pixel-btn bg-green-600 text-white px-5 py-3 pixel-font text-sm border-2 border-white">💾 儲存英雄卡</button>
+            <button onclick="closeModal('hero-modal')" class="bg-zinc-700 text-white px-5 py-3 pixel-font text-sm border-2 border-zinc-500">關閉</button>
+        </div>
+    </div>
+
     <!-- 大螢幕投影畫面 -->
     <div id="screen-admin" class="screen flex-col h-screen w-full bg-zinc-950 p-6 overflow-hidden">
         <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
@@ -297,6 +306,7 @@
 
         let html5QrcodeScanner = null;
         let adminPollingInterval = null;
+        let heroCardShown = false;   // 英雄卡是否已自動彈出過
 
         // ================= 核心輔助函式 =================
 
@@ -416,10 +426,13 @@
                 document.getElementById('quest-final').classList.remove('opacity-50');
                 const btnFinal = document.getElementById('btn-final');
                 if (userState.equippedItems.length >= 3) {
-                    btnFinal.disabled = true;
-                    btnFinal.innerText = '✨ 戰術配置已滿 ✨';
-                    btnFinal.className = 'pixel-btn w-full bg-green-700 text-white text-sm pixel-font py-2 border-2 border-white mt-1';
+                    btnFinal.disabled = false;
+                    btnFinal.innerText = '🏆 查看我的英雄卡';
+                    btnFinal.className = 'pixel-btn w-full bg-yellow-500 text-black text-sm pixel-font py-3 border-2 border-white mt-1 font-bold';
+                    btnFinal.onclick = openHeroCard;
+                    if (!heroCardShown) { heroCardShown = true; setTimeout(openHeroCard, 700); }
                 } else {
+                    btnFinal.onclick = startQrScanner;
                     btnFinal.disabled = false;
                     btnFinal.className = 'pixel-btn w-full bg-indigo-600 text-sm pixel-font py-3 border-2 border-white mt-1 flex items-center justify-center gap-2 font-bold animate-pulse';
                 }
@@ -435,6 +448,127 @@
         function getOptTitle(modId, val) {
             const opt = avatarOptions[modId].find(o => o.id === val);
             return opt ? opt.title : '未知';
+        }
+
+        // ================= 英雄卡（養成完成結業卡）=================
+        function getOpt(modId, val) {
+            return avatarOptions[modId].find(o => o.id === val) || { title: '未知', icon: '❓' };
+        }
+
+        function svgToImage(svgStr) {
+            return new Promise((resolve, reject) => {
+                const fixed = svgStr.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+                const url = URL.createObjectURL(new Blob([fixed], { type: 'image/svg+xml;charset=utf-8' }));
+                const im = new Image();
+                im.onload = () => resolve(im);
+                im.onerror = reject;
+                im.src = url;
+            });
+        }
+
+        async function openHeroCard() {
+            const m = document.getElementById('hero-modal');
+            m.classList.remove('hidden'); m.classList.add('flex');
+            const cv = document.getElementById('hero-canvas');
+            cv.classList.remove('card-pop-in'); void cv.offsetWidth; cv.classList.add('card-pop-in');
+            await drawHeroCard();
+        }
+
+        function saveHeroCard() {
+            const c = document.getElementById('hero-canvas');
+            const a = document.createElement('a');
+            a.download = `英雄卡_${userState.name || 'hero'}.png`;
+            a.href = c.toDataURL('image/png');
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        async function drawHeroCard() {
+            const c = document.getElementById('hero-canvas');
+            const W = 1080, H = 1460; c.width = W; c.height = H;
+            const ctx = c.getContext('2d');
+            try {
+                await Promise.all([
+                    document.fonts.load('900 64px "DotGothic16"'),
+                    document.fonts.load('900 64px "Noto Sans TC"'),
+                    document.fonts.load('500 34px "Noto Sans TC"')
+                ]);
+                await document.fonts.ready;
+            } catch (e) {}
+
+            ctx.fillStyle = '#18181b'; ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = '#f5b037'; ctx.lineWidth = 10; ctx.strokeRect(20, 20, W - 40, H - 40);
+            ctx.textAlign = 'center';
+
+            // 頂部橫帶
+            ctx.fillStyle = '#f5b037'; ctx.fillRect(20, 20, W - 40, 150);
+            ctx.fillStyle = '#18181b'; ctx.font = '900 64px "DotGothic16","Noto Sans TC"';
+            ctx.fillText('🏆 養成完成', W / 2, 122);
+
+            // 稱號
+            ctx.fillStyle = '#fbbf24'; ctx.font = '900 46px "Noto Sans TC"';
+            ctx.fillText('完全體：行動主管', W / 2, 250);
+
+            // 角色舞台
+            const sx = W / 2 - 210, sy = 290, ss = 420;
+            const g = ctx.createLinearGradient(0, sy, 0, sy + ss);
+            g.addColorStop(0, 'rgba(234,179,8,0.30)'); g.addColorStop(1, '#0f0f12');
+            ctx.fillStyle = g; ctx.fillRect(sx, sy, ss, ss);
+            ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 4; ctx.strokeRect(sx, sy, ss, ss);
+            try {
+                const img = await svgToImage(renderSVG(userState.avatarConfig, "340"));
+                ctx.drawImage(img, W / 2 - 170, sy + 40, 340, 340);
+            } catch (e) {}
+
+            // 姓名 / 部門
+            ctx.fillStyle = '#ffffff'; ctx.font = '900 64px "Noto Sans TC"';
+            ctx.fillText(userState.name || '', W / 2, 800);
+            ctx.fillStyle = '#a1a1aa'; ctx.font = '500 34px "Noto Sans TC"';
+            ctx.fillText(`${userState.dept || ''}  ·  ID ${userState.empId || ''}`, W / 2, 852);
+
+            ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(90, 900); ctx.lineTo(W - 90, 900); ctx.stroke();
+
+            // 養成歷程
+            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'left';
+            ctx.fillText('▶ 養成歷程', 90, 955);
+            ctx.textAlign = 'center';
+            [['服裝', 1, 'mod1'], ['髮型', 2, 'mod2'], ['姿勢', 3, 'mod3']].forEach((m, i) => {
+                const x = W * (0.25 + 0.25 * i);
+                const opt = getOpt(m[1], userState.avatarConfig[m[2]]);
+                ctx.fillStyle = '#71717a'; ctx.font = '500 26px "Noto Sans TC"'; ctx.fillText(m[0], x, 1010);
+                ctx.font = '48px "Noto Sans TC"'; ctx.fillText(opt.icon, x, 1065);
+                ctx.fillStyle = '#e4e4e7'; ctx.font = '700 28px "Noto Sans TC"'; ctx.fillText(opt.title, x, 1110);
+            });
+
+            // 實裝戰術
+            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'left';
+            ctx.fillText('▶ 實裝戰術技能', 90, 1180);
+            ctx.textAlign = 'center';
+            userState.equippedItems.slice(0, 3).forEach((code, i) => {
+                const it = itemDB[code]; if (!it) return;
+                const x = W * (0.25 + 0.25 * i), cw = 300, cy0 = 1210, ch = 115;
+                ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.strokeStyle = '#52525b'; ctx.lineWidth = 2;
+                roundRect(ctx, x - cw / 2, cy0, cw, ch, 12); ctx.fill(); ctx.stroke();
+                ctx.font = '44px "Noto Sans TC"'; ctx.fillStyle = '#fff'; ctx.fillText(it.icon, x, cy0 + 56);
+                ctx.font = '700 26px "Noto Sans TC"'; ctx.fillStyle = '#e4e4e7'; ctx.fillText(it.title, x, cy0 + 98);
+            });
+
+            // 標語 + 頁尾
+            ctx.fillStyle = '#fbbf24'; ctx.font = 'italic 700 32px "Noto Sans TC"';
+            ctx.fillText('「養成完成，行動主管正式上線」', W / 2, 1375);
+            const d = new Date();
+            ctx.fillStyle = '#71717a'; ctx.font = '500 26px "DotGothic16","Noto Sans TC"';
+            ctx.fillText(`良興主管公會 · ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`, W / 2, 1420);
         }
 
         // ================= 紙娃娃 Modal 邏輯 =================
