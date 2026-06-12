@@ -589,8 +589,8 @@
             ctx.beginPath(); ctx.moveTo(80, 695); ctx.lineTo(W - 80, 695); ctx.stroke();
 
             // 我的五力裝備（滿版橫列，灰底，與承諾框同寬同風格）
-            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'left';
-            ctx.fillText('▶ 我的五力裝備', 60, 740);
+            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'center';
+            ctx.fillText('▶ 我的五力裝備 ◀', W / 2, 740);
             equippedForces.forEach((o, i) => {
                 const ry = fy + i * (rowH + gap);
                 const midY = ry + rowH / 2 + 12;               // 視覺垂直置中基線
@@ -607,11 +607,12 @@
 
             // 30 天承諾
             const commit = (document.getElementById('hero-commit') && document.getElementById('hero-commit').value || '').trim();
-            ctx.textAlign = 'left'; ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"';
-            ctx.fillText('▶ 我的 30 天承諾', 60, commitLabelY);
+            ctx.textAlign = 'center'; ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"';
+            ctx.fillText('▶ 我的 30 天承諾 ◀', W / 2, commitLabelY);
             ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.strokeStyle = '#52525b'; ctx.lineWidth = 2;
             roundRect(ctx, 40, commitBoxY, W - 80, commitBoxH, 14); ctx.fill(); ctx.stroke();
             const text = commit || '我承諾在 30 天內，做＿＿，讓＿＿看到＿＿這個改變。';
+            ctx.textAlign = 'left';
             ctx.fillStyle = commit ? '#ffffff' : '#52525b';
             ctx.font = (commit ? '700 ' : 'italic 500 ') + '32px "Noto Sans TC"';
             wrapText(ctx, text, 70, commitBoxY + 62, W - 140, 46, 4);
