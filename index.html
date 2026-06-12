@@ -577,9 +577,12 @@
             ctx.fillStyle = '#a1a1aa'; ctx.font = '500 28px "Noto Sans TC"';
             ctx.fillText(`${userState.dept || ''}  ·  ID ${userState.empId || ''}`, W / 2, 614);
 
-            // 養成歷程：角色圖負責「看」，這行負責「說」（不再用 emoji 重複）
-            const look = [1, 2, 3].map((m, i) => getOpt(m, userState.avatarConfig['mod' + (i + 1)]).title).join('　·　');
-            ctx.fillStyle = '#d4d4d8'; ctx.font = '500 26px "Noto Sans TC"';
+            // 養成歷程：顯示每個選擇「背後的意義」（管理原型），而非服裝名稱
+            const look = [1, 2, 3].map((m, i) => {
+                const o = getOpt(m, userState.avatarConfig['mod' + (i + 1)]);
+                return o.desc || o.title;
+            }).join('　·　');
+            ctx.fillStyle = '#d4d4d8'; ctx.font = '500 24px "Noto Sans TC"';
             ctx.fillText(look, W / 2, 656);
 
             ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 2;
