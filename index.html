@@ -51,7 +51,31 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .card-pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-    </style>
+
+        /* ===== 列印公會牆 ===== */
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            @page { margin: 8mm; }
+            body { background: #ffffff !important; }
+            body > div:not(#screen-admin) { display: none !important; }
+            #screen-admin {
+                position: static !important; display: block !important;
+                height: auto !important; padding: 0 !important; overflow: visible !important;
+                background: #ffffff !important;
+            }
+            #screen-admin > div:first-child { display: none !important; } /* 隱藏標頭與按鈕 */
+            #admin-grid {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 6px !important; overflow: visible !important; padding: 0 !important;
+            }
+            #admin-grid > div {
+                break-inside: avoid; page-break-inside: avoid;
+                animation: none !important; box-shadow: none !important;
+                height: auto !important; min-height: 230px;
+            }
+        }
+</style>
 </head>
 <body class="min-h-screen relative overflow-hidden bg-zinc-900 border-x border-zinc-800" id="app-body">
 
@@ -239,6 +263,9 @@
                 </button>
                 <button onclick="downloadCSV()" class="pixel-btn bg-green-600 px-6 py-3 text-white pixel-font border-2 border-white">
                     📊 下載訓練紀錄 (CSV)
+                </button>
+                <button onclick="window.print()" class="pixel-btn bg-sky-600 px-4 py-3 text-white pixel-font border-2 border-white text-sm">
+                    🖨 列印公會牆
                 </button>
                 <button onclick="switchScreen('screen-login'); clearInterval(adminPollingInterval); clearInterval(wordcloudInterval);" class="pixel-btn bg-zinc-700 px-4 py-3 text-white pixel-font border-2 border-zinc-500">
                     返回
