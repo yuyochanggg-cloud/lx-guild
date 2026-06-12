@@ -522,7 +522,7 @@
 
         async function drawHeroCard() {
             const c = document.getElementById('hero-canvas');
-            const W = 1080, H = 1440; c.width = W; c.height = H;
+            const W = 1080, H = 1560; c.width = W; c.height = H;
             const ctx = c.getContext('2d');
             try {
                 await Promise.all([
@@ -543,28 +543,40 @@
             ctx.fillText('🏆 養成完成', W / 2, 118);
 
             // 角色舞台
-            const sx = W / 2 - 180, sy = 190, ss = 360;
+            const sx = W / 2 - 175, sy = 185, ss = 350;
             const g = ctx.createLinearGradient(0, sy, 0, sy + ss);
             g.addColorStop(0, 'rgba(234,179,8,0.30)'); g.addColorStop(1, '#0f0f12');
             ctx.fillStyle = g; ctx.fillRect(sx, sy, ss, ss);
             ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 4; ctx.strokeRect(sx, sy, ss, ss);
             try {
-                const img = await svgToImage(renderSVG(userState.avatarConfig, "300"));
-                ctx.drawImage(img, W / 2 - 150, sy + 40, 300, 300);
+                const img = await svgToImage(renderSVG(userState.avatarConfig, "290"));
+                ctx.drawImage(img, W / 2 - 145, sy + 40, 290, 290);
             } catch (e) {}
 
             // 姓名 / 部門
-            ctx.fillStyle = '#ffffff'; ctx.font = '900 60px "Noto Sans TC"';
-            ctx.fillText(userState.name || '', W / 2, 615);
-            ctx.fillStyle = '#a1a1aa'; ctx.font = '500 32px "Noto Sans TC"';
-            ctx.fillText(`${userState.dept || ''}  ·  ID ${userState.empId || ''}`, W / 2, 660);
+            ctx.fillStyle = '#ffffff'; ctx.font = '900 58px "Noto Sans TC"';
+            ctx.fillText(userState.name || '', W / 2, 595);
+            ctx.fillStyle = '#a1a1aa'; ctx.font = '500 30px "Noto Sans TC"';
+            ctx.fillText(`${userState.dept || ''}  ·  ID ${userState.empId || ''}`, W / 2, 636);
 
             ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(80, 700); ctx.lineTo(W - 80, 700); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(80, 672); ctx.lineTo(W - 80, 672); ctx.stroke();
 
-            // 五力裝備分布
+            // 養成歷程（前面三個選擇）
             ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'left';
-            ctx.fillText('▶ 我的五力裝備', 60, 745);
+            ctx.fillText('▶ 養成歷程', 60, 712);
+            ctx.textAlign = 'center';
+            [['服裝', 1, 'mod1'], ['髮型', 2, 'mod2'], ['姿勢', 3, 'mod3']].forEach((m, i) => {
+                const x = W * (0.25 + 0.25 * i);
+                const opt = getOpt(m[1], userState.avatarConfig[m[2]]);
+                ctx.fillStyle = '#71717a'; ctx.font = '500 25px "Noto Sans TC"'; ctx.fillText(m[0], x, 758);
+                ctx.font = '44px "Noto Sans TC"'; ctx.fillText(opt.icon, x, 812);
+                ctx.fillStyle = '#e4e4e7'; ctx.font = '700 28px "Noto Sans TC"'; ctx.fillText(opt.title, x, 856);
+            });
+
+            // 我的五力裝備（只顯示有裝到的）
+            ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"'; ctx.textAlign = 'left';
+            ctx.fillText('▶ 我的五力裝備', 60, 920);
 
             const byForce = {};
             (userState.equippedItems || []).forEach(code => {
@@ -573,47 +585,37 @@
                 (byForce[p] = byForce[p] || []).push(t);
             });
 
-            const cy0 = 765, ch = 205;
-            FORCES.forEach((f, i) => {
-                const x0 = 40 + i * 200, cw = 192, cx = x0 + cw / 2;
-                const cards = byForce[f.key] || [];
-                const on = cards.length > 0;
-                ctx.fillStyle = on ? 'rgba(245,176,55,0.14)' : 'rgba(255,255,255,0.03)';
-                ctx.strokeStyle = on ? '#f5b037' : '#3f3f46';
-                ctx.lineWidth = on ? 3 : 1.5;
-                roundRect(ctx, x0, cy0, cw, ch, 12); ctx.fill(); ctx.stroke();
+            const equippedForces = FORCES.map(f => ({ f, cards: byForce[f.key] || [] })).filter(o => o.cards.length > 0);
+            const cw = 192, gap = 18, ch = 200, fcy = 945;
+            const total = equippedForces.length * cw + (equippedForces.length - 1) * gap;
+            const startX = (W - total) / 2;
+            equippedForces.forEach((o, i) => {
+                const x0 = startX + i * (cw + gap), cx = x0 + cw / 2;
+                ctx.fillStyle = 'rgba(245,176,55,0.14)'; ctx.strokeStyle = '#f5b037'; ctx.lineWidth = 3;
+                roundRect(ctx, x0, fcy, cw, ch, 12); ctx.fill(); ctx.stroke();
                 ctx.textAlign = 'center';
-                ctx.globalAlpha = on ? 1 : 0.4;
-                ctx.font = '42px "Noto Sans TC"'; ctx.fillStyle = '#fff'; ctx.fillText(f.icon, cx, cy0 + 54);
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = on ? '#fbbf24' : '#71717a'; ctx.font = '700 24px "Noto Sans TC"';
-                ctx.fillText(f.name, cx, cy0 + 92);
-                ctx.fillStyle = on ? '#71717a' : '#52525b'; ctx.font = '500 18px "Noto Sans TC"';
-                ctx.fillText(f.tag, cx, cy0 + 116);
-                if (on) {
-                    ctx.fillStyle = '#e4e4e7'; ctx.font = '700 19px "Noto Sans TC"';
-                    cards.forEach((t, j) => ctx.fillText(truncate(t, 7), cx, cy0 + 150 + j * 26));
-                } else {
-                    ctx.fillStyle = '#3f3f46'; ctx.font = '500 22px "Noto Sans TC"';
-                    ctx.fillText('—', cx, cy0 + 158);
-                }
+                ctx.font = '42px "Noto Sans TC"'; ctx.fillStyle = '#fff'; ctx.fillText(o.f.icon, cx, fcy + 56);
+                ctx.fillStyle = '#fbbf24'; ctx.font = '700 26px "Noto Sans TC"'; ctx.fillText(o.f.name, cx, fcy + 96);
+                ctx.fillStyle = '#71717a'; ctx.font = '500 18px "Noto Sans TC"'; ctx.fillText(o.f.tag, cx, fcy + 122);
+                ctx.fillStyle = '#e4e4e7'; ctx.font = '700 20px "Noto Sans TC"';
+                o.cards.forEach((t, j) => ctx.fillText(truncate(t, 7), cx, fcy + 158 + j * 28));
             });
 
             // 30 天承諾
             const commit = (document.getElementById('hero-commit') && document.getElementById('hero-commit').value || '').trim();
             ctx.textAlign = 'left'; ctx.fillStyle = '#fbbf24'; ctx.font = '700 30px "DotGothic16","Noto Sans TC"';
-            ctx.fillText('▶ 我的 30 天承諾', 60, 1030);
+            ctx.fillText('▶ 我的 30 天承諾', 60, 1215);
             ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.strokeStyle = '#52525b'; ctx.lineWidth = 2;
-            roundRect(ctx, 40, 1055, W - 80, 215, 14); ctx.fill(); ctx.stroke();
+            roundRect(ctx, 40, 1240, W - 80, 215, 14); ctx.fill(); ctx.stroke();
             const text = commit || '我承諾在 30 天內，做＿＿，讓＿＿看到＿＿這個改變。';
             ctx.fillStyle = commit ? '#ffffff' : '#52525b';
             ctx.font = (commit ? '700 ' : 'italic 500 ') + '32px "Noto Sans TC"';
-            wrapText(ctx, text, 70, 1120, W - 140, 46, 4);
+            wrapText(ctx, text, 70, 1305, W - 140, 46, 4);
 
             // 頁尾
             const d = new Date();
             ctx.textAlign = 'center'; ctx.fillStyle = '#71717a'; ctx.font = '500 26px "DotGothic16","Noto Sans TC"';
-            ctx.fillText(`良興主管公會 · ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`, W / 2, 1360);
+            ctx.fillText(`良興主管公會 · ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`, W / 2, 1505);
         }
 
         // ================= 紙娃娃 Modal 邏輯 =================
