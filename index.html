@@ -574,7 +574,7 @@
             // 姓名 / 部門
             ctx.fillStyle = '#ffffff'; ctx.font = '900 56px "Noto Sans TC"';
             ctx.fillText(userState.name || '', W / 2, 575);
-            ctx.fillStyle = '#a1a1aa'; ctx.font = '500 28px "Noto Sans TC"';
+            ctx.fillStyle = '#a1a1aa'; ctx.font = '500 30px "Noto Sans TC"';
             ctx.fillText(`${userState.dept || ''}  ·  ID ${userState.empId || ''}`, W / 2, 614);
 
             // 養成歷程：顯示每個選擇「背後的意義」（管理原型），而非服裝名稱
@@ -582,8 +582,8 @@
                 const o = getOpt(m, userState.avatarConfig['mod' + (i + 1)]);
                 return o.desc || o.title;
             }).join('　·　');
-            ctx.fillStyle = '#d4d4d8'; ctx.font = '500 24px "Noto Sans TC"';
-            ctx.fillText(look, W / 2, 656);
+            ctx.fillStyle = '#d4d4d8'; ctx.font = '500 28px "Noto Sans TC"';
+            ctx.fillText(look, W / 2, 658);
 
             ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(80, 695); ctx.lineTo(W - 80, 695); ctx.stroke();
@@ -619,7 +619,7 @@
             // 頁尾
             const d = new Date();
             ctx.textAlign = 'center'; ctx.fillStyle = '#71717a'; ctx.font = '500 26px "DotGothic16","Noto Sans TC"';
-            ctx.fillText(`良興主管公會 · ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`, W / 2, footerY);
+            ctx.fillText(`良興主管公會 · ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`, W / 2, footerY);
         }
 
         // ================= 紙娃娃 Modal 邏輯 =================
