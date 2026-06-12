@@ -533,7 +533,7 @@
             });
             const equippedForces = FORCES.map(f => ({ f, cards: byForce[f.key] || [] })).filter(o => o.cards.length > 0);
 
-            const fy = 760, rowH = 78, gap = 14;                       // 五力橫列
+            const fy = 760, rowH = 86, gap = 14;                       // 五力橫列
             const afterForces = fy + equippedForces.length * rowH + Math.max(0, equippedForces.length - 1) * gap;
             const commitLabelY = afterForces + 48;
             const commitBoxY = afterForces + 65, commitBoxH = 200;
@@ -593,14 +593,16 @@
             ctx.fillText('▶ 我的五力裝備', 60, 740);
             equippedForces.forEach((o, i) => {
                 const ry = fy + i * (rowH + gap);
+                const midY = ry + rowH / 2 + 12;               // 視覺垂直置中基線
                 ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.strokeStyle = '#52525b'; ctx.lineWidth = 2;
                 roundRect(ctx, 40, ry, W - 80, rowH, 12); ctx.fill(); ctx.stroke();
                 ctx.textAlign = 'left';
-                ctx.font = '38px "Noto Sans TC"'; ctx.fillStyle = '#fff'; ctx.fillText(o.f.icon, 70, ry + 52);
-                ctx.fillStyle = '#fbbf24'; ctx.font = '700 28px "Noto Sans TC"'; ctx.fillText(o.f.name, 130, ry + 36);
-                ctx.fillStyle = '#71717a'; ctx.font = '500 20px "Noto Sans TC"'; ctx.fillText(o.f.tag, 130, ry + 64);
-                ctx.textAlign = 'right'; ctx.fillStyle = '#e4e4e7'; ctx.font = '700 24px "Noto Sans TC"';
-                ctx.fillText(o.cards.join('  /  '), W - 65, ry + 50);
+                ctx.font = '42px "Noto Sans TC"'; ctx.fillStyle = '#fff'; ctx.fillText(o.f.icon, 70, midY);
+                ctx.fillStyle = '#fbbf24'; ctx.font = '700 34px "Noto Sans TC"'; ctx.fillText(o.f.name, 132, midY);
+                const nameW = ctx.measureText(o.f.name).width;
+                ctx.fillStyle = '#71717a'; ctx.font = '500 24px "Noto Sans TC"'; ctx.fillText(o.f.tag, 132 + nameW + 20, midY);
+                ctx.textAlign = 'right'; ctx.fillStyle = '#e4e4e7'; ctx.font = '700 28px "Noto Sans TC"';
+                ctx.fillText(o.cards.join('  /  '), W - 65, midY);
             });
 
             // 30 天承諾
