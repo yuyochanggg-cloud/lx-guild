@@ -207,7 +207,7 @@
             <div id="question-text" class="text-lg font-bold text-white mb-4 leading-snug"></div>
             <textarea id="question-answer" rows="3" placeholder="在這裡打下你的答案..." class="w-full bg-zinc-800 text-white p-3 border border-zinc-600 pixel-font outline-none resize-none text-sm mb-4"></textarea>
             <button onclick="submitQuestionAnswer()" class="pixel-btn w-full bg-yellow-500 text-black font-bold pixel-font py-3 border-2 border-white text-sm">提交並解鎖下一階段 →</button>
-            <button onclick="closeModal('question-modal')" class="w-full text-zinc-500 text-xs mt-3 pixel-font py-2">跳過（直接解鎖）</button>
+            <button onclick="skipQuestion()" class="w-full text-zinc-500 text-xs mt-3 pixel-font py-2">跳過（直接解鎖）</button>
         </div>
     </div>
 
@@ -821,6 +821,12 @@
                 } catch(e) { /* 靜默失敗，不阻擋解鎖 */ }
             }
             // 問題回答完 → 進選裝備
+            showAvatarOptionsDirect(pendingModId);
+        }
+
+        // 跳過：不送回應牆，但照常進入選裝備（修正原本只關視窗、不解鎖的 bug）
+        function skipQuestion() {
+            closeModal('question-modal');
             showAvatarOptionsDirect(pendingModId);
         }
 
