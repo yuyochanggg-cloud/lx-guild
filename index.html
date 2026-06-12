@@ -506,6 +506,11 @@
         }
 
         function saveHeroCard() {
+            // 同步 30 天承諾到後端（讓公會牆 / 列印能集中顯示）
+            const commit = (document.getElementById('hero-commit') && document.getElementById('hero-commit').value || '').trim();
+            if (commit && userState.empId) {
+                callAPI('saveCommitment', { empId: userState.empId, commitment: commit }).catch(() => {});
+            }
             const c = document.getElementById('hero-canvas');
             const a = document.createElement('a');
             a.download = `英雄卡_${userState.name || 'hero'}.png`;
@@ -1042,8 +1047,14 @@
                     }).join('');
                     if (!itemsHtml) itemsHtml = '<div class="text-[9px] text-zinc-600 mt-1">尚未實裝戰術</div>';
 
+                    // 養成歷程意義（三個選擇的原型）
+                    const meanings = [1, 2, 3].map(m => getOpt(m, user.avatarConfig['mod' + m]).desc).filter(Boolean).join(' · ');
+                    const meaningsHtml = meanings ? `<div class="text-[8px] text-amber-200/80 leading-tight w-full mt-1 px-0.5 line-clamp-2">${meanings}</div>` : '';
+                    // 30 天承諾（需後端回傳 commitment 欄位）
+                    const commitHtml = user.commitment ? `<div class="text-[8px] text-zinc-300 leading-snug w-full mt-1 px-0.5 text-left border-t border-zinc-800 pt-1">📝 ${user.commitment}</div>` : '';
+
                     grid.innerHTML += `
-                        <div class="border-2 ${bg}${ringCls} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-64 overflow-hidden transition-all duration-500">
+                        <div class="border-2 ${bg}${ringCls} p-2 relative card-pop-in flex flex-col items-center text-center bg-zinc-900/90 h-auto min-h-[270px] overflow-hidden transition-all duration-500">
                             ${newBadge}
                             <div class="absolute top-1 left-1 pixel-font text-[8px] bg-black px-1 text-zinc-400 border border-zinc-700">ID:${user.empId}</div>
                             <div class="w-full h-24 mt-2 flex items-end justify-center ${innerBg} border border-zinc-700 pt-2 relative">
@@ -1051,9 +1062,11 @@
                             </div>
                             <div class="text-[9px] text-zinc-400 pixel-font mt-2 w-full truncate">${user.dept}</div>
                             <div class="text-sm font-black text-white w-full truncate">${user.name}</div>
-                            <div class="w-full pt-1 border-t border-zinc-800 mt-auto">
+                            ${meaningsHtml}
+                            <div class="w-full pt-1 border-t border-zinc-800 mt-2">
                                 ${itemsHtml}
                             </div>
+                            ${commitHtml}
                         </div>
                     `;
                 });
